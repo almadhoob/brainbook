@@ -76,17 +76,15 @@ func (db DB) CreateDatabase() error {
         FOREIGN KEY (owner_id) REFERENCES user(id)
     );`
 
-	// Add group role table
 	const CreateGroupMemberTable = `
     CREATE TABLE IF NOT EXISTS group_member (
         group_id INTEGER NOT NULL,
         user_id INTEGER NOT NULL,
-        group_role_id INTEGER NOT NULL, 
+        role TEXT CHECK( role IN ('member','owner') ) NOT NULL DEFAULT 'pending',
         joined_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         PRIMARY KEY (group_id, user_id),
         FOREIGN KEY (group_id) REFERENCES group(id),
         FOREIGN KEY (user_id) REFERENCES user(id),
-        FOREIGN KEY (group_role_id) REFERENCES group_role(id) -- Create role table with owner and member. Extensible.
     );`
 
 	const CreateGroupJoinRequestTable = `

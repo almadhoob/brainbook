@@ -2,7 +2,6 @@ package database
 
 import (
 	"database/sql"
-	"database/sql/driver"
 	"errors"
 	"fmt"
 	"reflect"
@@ -11,7 +10,7 @@ import (
 	"sync"
 )
 
-// NameMapper is used to map column names to struct field names.  By default,
+// NameMapper is used to map column names to struct field names. By default,
 // it uses strings.ToLower to lowercase struct field names.  It can be set
 // to whatever you want, but it is encouraged to be set before sqlx is used
 // as name-to-field mappings are cached after first use on a type.
@@ -42,9 +41,6 @@ func mapper() *Mapper {
 
 var _scannerInterface = reflect.TypeOf((*sql.Scanner)(nil)).Elem()
 
-//lint:ignore U1000 ignoring this for now
-var _valuerInterface = reflect.TypeOf((*driver.Valuer)(nil)).Elem()
-
 // isScannable takes the reflect.Type and the actual dest value and returns
 // whether or not it's Scannable.  Something is scannable if:
 //   - it is not a struct
@@ -63,13 +59,6 @@ func isScannable(t reflect.Type) bool {
 	return len(mapper().TypeMap(t).Index) == 0
 }
 
-// ColScanner is an interface used by MapScan and SliceScan
-type ColScanner interface {
-	Columns() ([]string, error)
-	Scan(dest ...interface{}) error
-	Err() error
-}
-
 type rowsi interface {
 	Close() error
 	Columns() ([]string, error)
@@ -82,7 +71,7 @@ type rowsi interface {
 // struct is expected but something else is given
 func structOnlyError(t reflect.Type) error {
 	isStruct := t.Kind() == reflect.Struct
-	isScanner := reflect.PtrTo(t).Implements(_scannerInterface)
+	isScanner := reflect.PointerTo(t).Implements(_scannerInterface)
 	if !isStruct {
 		return fmt.Errorf("expected %s but got %s", reflect.Struct, t.Kind())
 	}
@@ -316,29 +305,6 @@ type StructMap struct {
 	Names map[string]*FieldInfo
 }
 
-// GetByPath returns a *FieldInfo for a given string path.
-func (f StructMap) GetByPath(path string) *FieldInfo {
-	return f.Paths[path]
-}
-
-// GetByTraversal returns a *FieldInfo for a given integer path.  It is
-// analogous to reflect.FieldByIndex, but using the cached traversal
-// rather than re-executing the reflect machinery each time.
-func (f StructMap) GetByTraversal(index []int) *FieldInfo {
-	if len(index) == 0 {
-		return nil
-	}
-
-	tree := f.Tree
-	for _, i := range index {
-		if i >= len(tree.Children) || tree.Children[i] == nil {
-			return nil
-		}
-		tree = tree.Children[i]
-	}
-	return tree
-}
-
 // Mapper is a general purpose mapper of names to struct fields.  A Mapper
 // behaves like most marshallers in the standard library, obeying a field tag
 // for name mapping but also providing a basic transform function.
@@ -348,27 +314,6 @@ type Mapper struct {
 	tagMapFunc func(string) string
 	mapFunc    func(string) string
 	mutex      sync.Mutex
-}
-
-// NewMapper returns a new mapper using the tagName as its struct field tag.
-// If tagName is the empty string, it is ignored.
-func NewMapper(tagName string) *Mapper {
-	return &Mapper{
-		cache:   make(map[reflect.Type]*StructMap),
-		tagName: tagName,
-	}
-}
-
-// NewMapperTagFunc returns a new mapper which contains a mapper for field names
-// AND a mapper for tag values.  This is useful for tags like json which can
-// have values like "name,omitempty".
-func NewMapperTagFunc(tagName string, mapFunc, tagMapFunc func(string) string) *Mapper {
-	return &Mapper{
-		cache:      make(map[reflect.Type]*StructMap),
-		tagName:    tagName,
-		mapFunc:    mapFunc,
-		tagMapFunc: tagMapFunc,
-	}
 }
 
 // NewMapperFunc returns a new mapper which optionally obeys a field tag and
@@ -393,55 +338,6 @@ func (m *Mapper) TypeMap(t reflect.Type) *StructMap {
 	}
 	m.mutex.Unlock()
 	return mapping
-}
-
-// FieldMap returns the mapper's mapping of field names to reflect values.  Panics
-// if v's Kind is not Struct, or v is not Indirectable to a struct kind.
-func (m *Mapper) FieldMap(v reflect.Value) map[string]reflect.Value {
-	v = reflect.Indirect(v)
-	mustBe(v, reflect.Struct)
-
-	r := map[string]reflect.Value{}
-	tm := m.TypeMap(v.Type())
-	for tagName, fi := range tm.Names {
-		r[tagName] = FieldByIndexes(v, fi.Index)
-	}
-	return r
-}
-
-// FieldByName returns a field by its mapped name as a reflect.Value.
-// Panics if v's Kind is not Struct or v is not Indirectable to a struct Kind.
-// Returns zero Value if the name is not found.
-func (m *Mapper) FieldByName(v reflect.Value, name string) reflect.Value {
-	v = reflect.Indirect(v)
-	mustBe(v, reflect.Struct)
-
-	tm := m.TypeMap(v.Type())
-	fi, ok := tm.Names[name]
-	if !ok {
-		return v
-	}
-	return FieldByIndexes(v, fi.Index)
-}
-
-// FieldsByName returns a slice of values corresponding to the slice of names
-// for the value.  Panics if v's Kind is not Struct or v is not Indirectable
-// to a struct Kind.  Returns zero Value for each name not found.
-func (m *Mapper) FieldsByName(v reflect.Value, names []string) []reflect.Value {
-	v = reflect.Indirect(v)
-	mustBe(v, reflect.Struct)
-
-	tm := m.TypeMap(v.Type())
-	vals := make([]reflect.Value, 0, len(names))
-	for _, name := range names {
-		fi, ok := tm.Names[name]
-		if !ok {
-			vals = append(vals, *new(reflect.Value))
-		} else {
-			vals = append(vals, FieldByIndexes(v, fi.Index))
-		}
-	}
-	return vals
 }
 
 // TraversalsByName returns a slice of int slices which represent the struct
@@ -496,16 +392,6 @@ func FieldByIndexes(v reflect.Value, indexes []int) reflect.Value {
 		if v.Kind() == reflect.Map && v.IsNil() {
 			v.Set(reflect.MakeMap(v.Type()))
 		}
-	}
-	return v
-}
-
-// FieldByIndexesReadOnly returns a value for a particular struct traversal,
-// but is not concerned with allocating nil pointers because the value is
-// going to be used for reading and not setting.
-func FieldByIndexesReadOnly(v reflect.Value, indexes []int) reflect.Value {
-	for _, i := range indexes {
-		v = reflect.Indirect(v).Field(i)
 	}
 	return v
 }

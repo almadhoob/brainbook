@@ -5,6 +5,8 @@ import (
 )
 
 func (db DB) CreateDatabase() error {
+	// Move all constraints to bottom of table definition
+	// Change integer values to CHECK
 
 	const CreateUserTable = `
     CREATE TABLE IF NOT EXISTS user (
@@ -26,10 +28,13 @@ func (db DB) CreateDatabase() error {
         user_id INTEGER NOT NULL,
         content TEXT,
         image BLOB,
-        privacy INTEGER, 
+        status CHECK( status IN ('public','private','limited') )    NOT NULL DEFAULT 'public',
+        -- private = only followers, limited = selected followers
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES user(id)
     );`
+
+	// Add table here for the followers selected for the post
 
 	const CreatePostCommentTable = `
     CREATE TABLE IF NOT EXISTS post_comment (
@@ -48,7 +53,7 @@ func (db DB) CreateDatabase() error {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         requester_id INTEGER NOT NULL,
         target_id INTEGER NOT NULL,
-        status INTEGER NOT NULL,
+        status CHECK( status IN ('pending','accepted','declined') ) NOT NULL DEFAULT 'pending',
         FOREIGN KEY (requester_id) REFERENCES user(id),
         FOREIGN KEY (target_id) REFERENCES user(id)
     );`
@@ -62,24 +67,26 @@ func (db DB) CreateDatabase() error {
     );`
 
 	const CreateGroupTable = `
-    CREATE TABLE IF NOT EXISTS group_table (
+    CREATE TABLE IF NOT EXISTS group (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        creator_id INTEGER NOT NULL,
+        owner_id INTEGER NOT NULL,
         title TEXT,
         description TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (creator_id) REFERENCES user(id)
+        FOREIGN KEY (owner_id) REFERENCES user(id)
     );`
 
+	// Add group role table
 	const CreateGroupMemberTable = `
     CREATE TABLE IF NOT EXISTS group_member (
         group_id INTEGER NOT NULL,
         user_id INTEGER NOT NULL,
-        role INTEGER NOT NULL, 
+        group_role_id INTEGER NOT NULL, 
         joined_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         PRIMARY KEY (group_id, user_id),
-        FOREIGN KEY (group_id) REFERENCES group_table(id),
-        FOREIGN KEY (user_id) REFERENCES user(id)
+        FOREIGN KEY (group_id) REFERENCES group(id),
+        FOREIGN KEY (user_id) REFERENCES user(id),
+        FOREIGN KEY (group_role_id) REFERENCES group_role(id) -- Create role table with owner and member. Extensible.
     );`
 
 	const CreateGroupJoinRequestTable = `
@@ -87,9 +94,9 @@ func (db DB) CreateDatabase() error {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         group_id INTEGER NOT NULL,
         requester_id INTEGER NOT NULL,
-        status INTEGER NOT NULL, -- 0 = pending, 1 = accepted, 2 = declined
+        status CHECK( status IN ('pending','accepted','declined') ) NOT NULL DEFAULT 'pending',
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (group_id) REFERENCES group_table(id),
+        FOREIGN KEY (group_id) REFERENCES group(id),
         FOREIGN KEY (requester_id) REFERENCES user(id)
     );`
 
@@ -102,11 +109,11 @@ func (db DB) CreateDatabase() error {
         user_id INTEGER NOT NULL,
         group_id INTEGER NOT NULL,
         FOREIGN KEY (user_id) REFERENCES user(id),
-        FOREIGN KEY (group_id) REFERENCES group_table(id)
+        FOREIGN KEY (group_id) REFERENCES group(id)
     );`
 
 	const CreateGroupCommentTable = `
-    CREATE TABLE IF NOT EXISTS group_comment (
+    CREATE TABLE IF NOT EXISTS group_post_comment (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         content TEXT,
         image BLOB,
@@ -145,7 +152,7 @@ func (db DB) CreateDatabase() error {
         sender_id INTEGER NOT NULL,
         content TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (group_id) REFERENCES group_table(id),
+        FOREIGN KEY (group_id) REFERENCES group(id),
         FOREIGN KEY (sender_id) REFERENCES user(id)
     );`
 
@@ -156,7 +163,7 @@ func (db DB) CreateDatabase() error {
         description TEXT,
         time DATETIME NOT NULL,
         group_id INTEGER NOT NULL,
-        FOREIGN KEY (group_id) REFERENCES group_table(id)
+        FOREIGN KEY (group_id) REFERENCES group(id)
     );`
 
 	const CreateEventHasUserTable = `

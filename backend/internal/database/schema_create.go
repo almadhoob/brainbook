@@ -80,7 +80,7 @@ func (db DB) CreateDatabase() error {
     CREATE TABLE IF NOT EXISTS group_member (
         group_id INTEGER NOT NULL,
         user_id INTEGER NOT NULL,
-        role TEXT CHECK( role IN ('member','owner') ) NOT NULL DEFAULT 'pending',
+        role TEXT CHECK( role IN ('member','owner') ) NOT NULL DEFAULT 'member',
         joined_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         PRIMARY KEY (group_id, user_id),
         FOREIGN KEY (group_id) REFERENCES group(id),
@@ -174,6 +174,15 @@ func (db DB) CreateDatabase() error {
         FOREIGN KEY (user_id) REFERENCES user(id)
     );`
 
+    const CreatePostVisibilityTable = `
+    CREATE TABLE IF NOT EXISTS post_visibility (
+    post_id  INTEGER NOT NULL,
+    user_id  INTEGER NOT NULL,  -- a follower selected to view the post
+    PRIMARY KEY (post_id, user_id),
+    FOREIGN KEY (post_id) REFERENCES post(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES user(id) ON DELETE CASCADE
+    );`
+
 	createTableStatements := []string{
 		CreateUserTable,
 		CreatePostTable,
@@ -190,6 +199,7 @@ func (db DB) CreateDatabase() error {
 		CreateGroupMessageTable,
 		CreateEventTable,
 		CreateEventHasUserTable,
+        CreatePostVisibilityTable,
 	}
 
 	for _, stmt := range createTableStatements {

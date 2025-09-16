@@ -35,9 +35,8 @@ func run(logger *slog.Logger) error {
 	// cfg.JWT.SecretKey = env.GetString("JWT_SECRET_KEY", "rev3alim442itqpwlereeo5npf3h5uip")
 
 	showVersion := flag.Bool("version", false, "display version and exit")
-	recreateDB := flag.Bool("recreate", false, "recreate the database with sample data")
-
-	flag.Parse()
+	// recreateDB := flag.Bool("recreate", false, "recreate the database with sample data")
+		 flag.Parse()
 
 	if *showVersion {
 		fmt.Printf("version: %s\n", version.Get())
@@ -48,17 +47,18 @@ func run(logger *slog.Logger) error {
 	if err != nil {
 		return err
 	}
+	fmt.Printf("Connected to database: %s\n", cfg.DB.DSN)
 	defer db.Close()
 
-	if *recreateDB {
-		if err := db.DropDatabase(); err != nil {
-			return err
-		}
-		if err := db.CreateDatabase(); err != nil {
-			return err
-		}
-		return db.SeedData()
-	}
+	// if *recreateDB {
+	// 	if err := db.DropDatabase(); err != nil {
+	// 		return err
+	// 	}
+	// 	if err := db.CreateDatabase(); err != nil {
+	// 		return err
+	// 	}
+	// 	return db.SeedData()
+	// }
 
 	app := &api.Application{
 		Config: cfg,

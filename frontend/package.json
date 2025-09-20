@@ -5,43 +5,36 @@
   "scripts": {
     "build": "nuxt build",
     "dev": "nuxt dev",
-    "generate": "nuxt generate",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "lint": "eslint .",
     "typecheck": "nuxt typecheck"
   },
   "dependencies": {
-    "@iconify-json/lucide": "^1.2.64",
-    "@iconify-json/simple-icons": "^1.2.49",
+    "@iconify-json/lucide": "^1.2.68",
+    "@iconify-json/simple-icons": "^1.2.52",
+    "@nuxt/content": "3.7.1",
     "@nuxt/image": "1.11.0",
     "@nuxt/scripts": "0.11.13",
     "@nuxt/test-utils": "3.19.2",
-    "@nuxt/ui": "^4.0.0-alpha.1",
+    "@nuxt/ui": "^4.0.0-alpha.2",
     "@unhead/vue": "^2.0.14",
-    "@unovis/ts": "^1.6.0",
-    "@unovis/vue": "^1.6.0",
-    "@vueuse/nuxt": "^13.7.0",
+    "@unovis/ts": "^1.6.1",
+    "@unovis/vue": "^1.6.1",
+    "@vueuse/nuxt": "^13.9.0",
+    "better-sqlite3": "^12.2.0",
     "date-fns": "^4.1.0",
     "nuxt": "^4.0.3",
-    "zod": "^3.25.76"
+    "zod": "^4.1.9"
   },
   "devDependencies": {
     "@nuxt/eslint": "^1.9.0",
-    "eslint": "^9.34.0",
+    "eslint": "^9.35.0",
     "typescript": "^5.9.2",
-    "vue-tsc": "^3.0.6"
+    "vue-tsc": "^3.0.7"
   },
   "resolutions": {
     "unimport": "4.1.1"
   },
-  "pnpm": {
-    "ignoredBuiltDependencies": [
-      "@parcel/watcher",
-      "esbuild",
-      "maplibre-gl",
-      "vue-demi"
-    ]
-  },
-  "packageManager": "pnpm@10.15.1"
+  "packageManager": "pnpm@10.17.0"
 }

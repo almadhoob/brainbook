@@ -54,14 +54,3 @@ func (db *DB) GetCommentsForPost(postID int) ([]Comment, error) {
 
 	return comments, nil
 }
-
-// GetCommentsCountForPost returns the total count of comments for a specific post
-func (db *DB) GetCommentsCountForPost(postID int) (int, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
-	defer cancel()
-
-	var count int
-	query := `SELECT COUNT(*) FROM comment WHERE post_id = $1`
-	err := db.GetContext(ctx, &count, query, postID)
-	return count, err
-}

@@ -18,15 +18,15 @@ import (
 )
 
 /*
-Define a config struct to hold all Application configuration settings.
-values are set from env variables when the Application starts.
+ Defines a config struct to hold all Application configuration settings.
+ values are set from env variables when the Application starts.
 */
 type Config struct {
 	BaseURL  string
 	HttpPort int
 	DB       struct {
 		DSN string
-		automigrate bool
+		Automigrate bool
 	}
 	// JWT struct {
 	// 	SecretKey string
@@ -92,36 +92,36 @@ func (app *Application) ServeHTTP() error {
 }
 
 // neuteredFileHandler creates a custom file handler that returns JSON error responses
-// instead of HTML when files are not found or directories are accessed inappropriately
+// instead of HTML when files are not found or directories are accessed inappropriately.
 func (app *Application) neuteredFileHandler(dir string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// Clean the path to prevent directory traversal attacks
+		// Cleans the path to prevent directory traversal attacks.
 		cleanPath := filepath.Clean(r.URL.Path)
 		if strings.Contains(cleanPath, "..") {
 			app.notFound(w, r)
 			return
 		}
 
-		// Build full file path
+		// Builds the full file path.
 		fullPath := filepath.Join(dir, cleanPath)
 
-		// Check if file exists and get info
+		// Checks if the file exists and retrieves its info.
 		fileInfo, err := os.Stat(fullPath)
 		if err != nil {
-			// File doesn't exist - return JSON 404
+			// Returns a JSON 404 response if the file doesn't exist.
 			app.notFound(w, r)
 			return
 		}
 
-		// Neutered behavior: If it's a directory, only serve if index.html exists
+		// Serves index.html if it exists and the URL requested corresponds to a directory.
 		if fileInfo.IsDir() {
 			indexPath := filepath.Join(fullPath, "index.html")
 			if _, err := os.Stat(indexPath); err != nil {
-				// No index.html in directory - return JSON 404
+				// Sends a JSON 404 response when no index.html is found in the directory.
 				app.notFound(w, r)
 				return
 			}
-			// Serve the index.html instead
+			// Serves the index.html file.
 			fullPath = indexPath
 		}
 

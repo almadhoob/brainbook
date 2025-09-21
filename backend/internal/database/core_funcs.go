@@ -6,8 +6,8 @@ import (
 )
 
 // GetContext does a QueryRow using the provided context, and scans the
-// resulting row to dest.  If dest is scannable, the result must only have one
-// column. Otherwise, StructScan is used.  Get will return sql.ErrNoRows like
+// resulting row to dest. If dest is scannable, the result must only have one
+// column. Otherwise, StructScan is used. Get will return sql.ErrNoRows like
 // row.Scan would. Any placeholder parameters are replaced with supplied args.
 // An error is returned if the result set is empty.
 func (db *DB) GetContext(ctx context.Context, dest interface{}, query string, args ...interface{}) error {
@@ -37,7 +37,7 @@ func (db *DB) SelectContext(ctx context.Context, dest interface{}, query string,
 	if err != nil {
 		return err
 	}
-	// if something happens here, we want to make sure the rows are Closed
+	// If something happens here, we want to make sure the rows are closed
 	defer rows.Close()
 	return scanAll(rows, dest, false)
 }

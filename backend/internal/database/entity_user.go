@@ -5,19 +5,27 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
 	"brainbook-api/internal/cookie"
 )
 
 type User struct {
-	ID             int    `db:"id" json:"id"`
-	FName          string `db:"f_name" json:"-"`
-	LName          string `db:"l_name" json:"-"`
-	Age            int    `db:"age" json:"-"`
-	Sex            bool   `db:"sex" json:"-"`
-	Username       string `db:"username" json:"username"`
-	Email          string `db:"email" json:"email"`
-	HashedPassword string `db:"hashed_password" json:"-"`
+	ID             int       `db:"id" json:"id"`
+	FName          string    `db:"f_name" json:"f_name"`
+	LName          string    `db:"l_name" json:"l_name"`
+	Email          string    `db:"email" json:"email"`
+	HashedPassword string    `db:"hashed_password" json:"-"`
+	Nickname       string    `db:"nickname" json:"nickname"`
+	DOB            time.Time `db:"dob" json:"dob"`
+	Avatar         []byte    `db:"avatar" json:"avatar"`
+}
+
+type UserSummary struct {
+	ID     int    `db:"id" json:"id"`
+	Avatar []byte `db:"dob" json:"dob"`
+	FName  string `db:"f_name" json:"f_name"`
+	LName  string `db:"l_name" json:"l_name"`
 }
 
 func (db *DB) InsertUser(firstName, lastName, username, email, hashedPassword string, age int, sex bool) (int, error) {

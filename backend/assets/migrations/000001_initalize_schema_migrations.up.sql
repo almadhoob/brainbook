@@ -1,11 +1,11 @@
 -- create user table
 CREATE TABLE IF NOT EXISTS user (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    email TEXT NOT NULL,
-    password TEXT NOT NULL,
     f_name TEXT NOT NULL,
     l_name TEXT NOT NULL,
-    date_of_birth DATETIME NOT NULL,
+    email TEXT NOT NULL,
+    password TEXT NOT NULL,
+    dob DATETIME NOT NULL,
     avatar BLOB,
     nickname TEXT,
     bio TEXT,
@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS post (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
     content TEXT,
-    image BLOB,
+    file BLOB,
     status CHECK( status IN ('public','private','limited') ) NOT NULL DEFAULT 'public',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES user(id)
@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS post_visibility (
 CREATE TABLE IF NOT EXISTS post_comment (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     content TEXT,
-    image BLOB,
+    file BLOB,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     post_id INTEGER NOT NULL,
     user_id INTEGER NOT NULL,
@@ -98,7 +98,7 @@ CREATE TABLE IF NOT EXISTS group_join_request (
 CREATE TABLE IF NOT EXISTS group_post (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     content TEXT,
-    image BLOB,
+    file BLOB,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     user_id INTEGER NOT NULL,
     group_id INTEGER NOT NULL,
@@ -110,7 +110,7 @@ CREATE TABLE IF NOT EXISTS group_post (
 CREATE TABLE IF NOT EXISTS group_post_comment (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     content TEXT,
-    image BLOB,
+    file BLOB,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     group_post_id INTEGER NOT NULL,
     user_id INTEGER NOT NULL,

@@ -5,7 +5,7 @@ import (
 
 	"brainbook-api/internal/request"
 	"brainbook-api/internal/response"
-	t "brainbook-api/internal/time"
+	time "brainbook-api/internal/time"
 	"brainbook-api/internal/validator"
 )
 
@@ -13,6 +13,7 @@ func (app *Application) createComment(w http.ResponseWriter, r *http.Request) {
 	var input struct {
 		PostID    int                 `json:"post_id"`
 		Content   string              `json:"content"`
+		Image     []byte              `json:"image"`
 		Validator validator.Validator `json:"-"`
 	}
 
@@ -28,18 +29,18 @@ func (app *Application) createComment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	input.Validator.CheckField(validator.NotBlank(input.Content), "reply-content", "Content must not be empty")
-	input.Validator.CheckField(validator.MaxRunes(input.Content, 500), "reply-content", "Content must not exceed 500 characters")
+	input.Validator.Check(validator.NotBlank(input.Content), "Content must not be empty")
+	input.Validator.Check(validator.MaxRunes(input.Content, 500), "Content must not exceed 500 characters")
 
 	if input.Validator.HasErrors() {
 		app.failedValidation(w, r, input.Validator)
 		return
 	}
 
-	currentDateTime := t.CurrentTime()
+	currentDateTime := time.CurrentTime()
 
 	// Insert the comment into the database
-	commentID, err := app.DB.InsertComment(input.PostID, user.ID, input.Content, currentDateTime)
+	commentID, err := app.DB.InsertComment(input.PostID, user.ID, input.Content, input.Image, currentDateTime)
 	if err != nil {
 		app.serverError(w, r, err)
 		return
@@ -47,8 +48,11 @@ func (app *Application) createComment(w http.ResponseWriter, r *http.Request) {
 
 	responseData := map[string]any{
 		"comment_id": commentID,
-		"username":   user.Username,
+		"f_name":     user.FName,
+		"l_name":     user.LName,
+		"avatar":     user.Avatar,
 		"content":    input.Content,
+		"image":      input.Image,
 		"created_at": currentDateTime,
 	}
 

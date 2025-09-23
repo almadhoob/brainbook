@@ -8,8 +8,41 @@ import (
 	"time"
 
 	"brainbook-api/internal/cookie"
-	user "brainbook-api/brainbook"
 )
+
+type User struct {
+	ID             int       `db:"id" json:"id"`
+	FName          string    `db:"f_name" json:"f_name"`
+	LName          string    `db:"l_name" json:"l_name"`
+	Email          string    `db:"email" json:"email"`
+	HashedPassword string    `db:"hashed_password" json:"-"`
+	DOB            time.Time `db:"dob" json:"dob"`
+	Avatar         []byte    `db:"avatar" json:"avatar"`
+	Nickname       string    `db:"nickname" json:"nickname"`
+	Bio            string    `db:"bio" json:"bio"`
+}
+
+type UserSummary struct {
+	ID     int    `db:"id" json:"id"`
+	Avatar []byte `db:"avatar" json:"avatar"`
+	FName  string `db:"f_name" json:"f_name"`
+	LName  string `db:"l_name" json:"l_name"`
+}
+
+func (u *User) UserSummary() *UserSummary {
+	return &UserSummary{
+		ID:     u.ID,
+		Avatar: u.Avatar,
+		FName:  u.FName,
+		LName:  u.LName,
+	}
+}
+
+type UserPatch struct {
+	Avatar   *[]byte `json:"avatar"`
+	Nickname *string `json:"nickname"`
+	Bio      *string `json:"bio"`
+}
 
 func (db *DB) InsertUser(firstName, lastName, email, hashedPassword, nickname, bio string, dob time.Time, avatar []byte) (int, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)

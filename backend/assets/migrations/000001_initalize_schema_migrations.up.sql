@@ -1,4 +1,3 @@
--- create user table
 CREATE TABLE IF NOT EXISTS user (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     f_name TEXT NOT NULL,
@@ -12,19 +11,17 @@ CREATE TABLE IF NOT EXISTS user (
     is_public BOOLEAN NOT NULL DEFAULT 1
 );
 
--- create post table
 CREATE TABLE IF NOT EXISTS post (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
     content TEXT,
     file BLOB,
-    status CHECK( status IN ('public','private','limited') ) NOT NULL DEFAULT 'public',
+    visibility CHECK( visibility IN ('public','private','limited') ) NOT NULL DEFAULT 'public',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES user(id)
 );
 
--- create post_visibility table
-CREATE TABLE IF NOT EXISTS post_visibility (
+CREATE TABLE IF NOT EXISTS post_user_can_view (
     post_id INTEGER NOT NULL,
     user_id INTEGER NOT NULL,
     PRIMARY KEY (post_id, user_id),
@@ -32,19 +29,17 @@ CREATE TABLE IF NOT EXISTS post_visibility (
     FOREIGN KEY (user_id) REFERENCES user(id) ON DELETE CASCADE
 );
 
--- create post_comment table
 CREATE TABLE IF NOT EXISTS post_comment (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    post_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
     content TEXT,
     file BLOB,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    post_id INTEGER NOT NULL,
-    user_id INTEGER NOT NULL,
     FOREIGN KEY (post_id) REFERENCES post(id),
     FOREIGN KEY (user_id) REFERENCES user(id)
 );
 
--- create follow_request table
 CREATE TABLE IF NOT EXISTS follow_request (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     requester_id INTEGER NOT NULL,
@@ -54,16 +49,14 @@ CREATE TABLE IF NOT EXISTS follow_request (
     FOREIGN KEY (target_id) REFERENCES user(id)
 );
 
--- create session table
 CREATE TABLE IF NOT EXISTS session (
-    session_token TEXT PRIMARY KEY,
     user_id INTEGER NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    session_token TEXT PRIMARY KEY,
     FOREIGN KEY (user_id) REFERENCES user(id)
 );
 
--- create group table
-CREATE TABLE IF NOT EXISTS "group" (
+CREATE TABLE IF NOT EXISTS group (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     owner_id INTEGER NOT NULL,
     title TEXT,
@@ -72,7 +65,6 @@ CREATE TABLE IF NOT EXISTS "group" (
     FOREIGN KEY (owner_id) REFERENCES user(id)
 );
 
--- create group_member table
 CREATE TABLE IF NOT EXISTS group_member (
     group_id INTEGER NOT NULL,
     user_id INTEGER NOT NULL,
@@ -83,7 +75,6 @@ CREATE TABLE IF NOT EXISTS group_member (
     FOREIGN KEY (user_id) REFERENCES user(id)
 );
 
--- create group_join_request table
 CREATE TABLE IF NOT EXISTS group_join_request (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     group_id INTEGER NOT NULL,
@@ -94,31 +85,28 @@ CREATE TABLE IF NOT EXISTS group_join_request (
     FOREIGN KEY (requester_id) REFERENCES user(id)
 );
 
--- create group_post table
 CREATE TABLE IF NOT EXISTS group_post (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    group_id INTEGER NOT NULL,
     content TEXT,
     file BLOB,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    user_id INTEGER NOT NULL,
-    group_id INTEGER NOT NULL,
     FOREIGN KEY (user_id) REFERENCES user(id),
     FOREIGN KEY (group_id) REFERENCES "group"(id)
 );
 
--- create group_post_comment table
 CREATE TABLE IF NOT EXISTS group_post_comment (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    group_post_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
     content TEXT,
     file BLOB,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    group_post_id INTEGER NOT NULL,
-    user_id INTEGER NOT NULL,
     FOREIGN KEY (group_post_id) REFERENCES group_post(id),
     FOREIGN KEY (user_id) REFERENCES user(id)
 );
 
--- create private_conversation table
 CREATE TABLE IF NOT EXISTS private_conversation (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user1_id INTEGER NOT NULL,
@@ -128,7 +116,6 @@ CREATE TABLE IF NOT EXISTS private_conversation (
     FOREIGN KEY (user2_id) REFERENCES user(id)
 );
 
--- create private_message table
 CREATE TABLE IF NOT EXISTS private_message (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     conversation_id INTEGER NOT NULL,
@@ -139,7 +126,6 @@ CREATE TABLE IF NOT EXISTS private_message (
     FOREIGN KEY (sender_id) REFERENCES user(id)
 );
 
--- create group_message table
 CREATE TABLE IF NOT EXISTS group_message (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     group_id INTEGER NOT NULL,
@@ -150,17 +136,15 @@ CREATE TABLE IF NOT EXISTS group_message (
     FOREIGN KEY (sender_id) REFERENCES user(id)
 );
 
--- create event table
 CREATE TABLE IF NOT EXISTS event (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    group_id INTEGER NOT NULL,
     title TEXT NOT NULL,
     description TEXT,
     time DATETIME NOT NULL,
-    group_id INTEGER NOT NULL,
     FOREIGN KEY (group_id) REFERENCES "group"(id)
 );
 
--- create event_has_user table
 CREATE TABLE IF NOT EXISTS event_has_user (
     event_id INTEGER NOT NULL,
     user_id INTEGER NOT NULL,

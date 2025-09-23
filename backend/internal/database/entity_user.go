@@ -29,14 +29,15 @@ type UserSummary struct {
 	LName  string `db:"l_name" json:"l_name"`
 }
 
-func (u *User) UserSummary() *UserSummary {
-	return &UserSummary{
-		ID:     u.ID,
-		Avatar: u.Avatar,
-		FName:  u.FName,
-		LName:  u.LName,
-	}
+// UserWithLastMessage represents a user with their last message time
+type UserWithLastMessageTime struct {
+	ID              int     `db:"id" json:"id"`
+	Avatar 			[]byte `db:"avatar" json:"avatar"`
+	FName  			string `db:"f_name" json:"f_name"`
+	LName  			string `db:"l_name" json:"l_name"`
+	LastMessageTime *string `db:"last_message_time" json:"last_message_time"`
 }
+
 
 type UserPatch struct {
 	Avatar   *[]byte `json:"avatar"`
@@ -65,11 +66,11 @@ func (db *DB) InsertUser(firstName, lastName, email, hashedPassword, nickname, b
 	return int(id), err
 }
 
-func (db *DB) GetUserById(id int) (*user.User, bool, error) {
+func (db *DB) GetUserById(id int) (*User, bool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
 
-	var user user.User
+	var user User
 
 	query := `SELECT * FROM user WHERE id = $1`
 
@@ -81,11 +82,11 @@ func (db *DB) GetUserById(id int) (*user.User, bool, error) {
 	return &user, true, err
 }
 
-func (db *DB) GetUserByEmail(email string) (*user.User, bool, error) {
+func (db *DB) GetUserByEmail(email string) (*User, bool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
 
-	var user user.User
+	var user User
 
 	query := `SELECT * FROM user WHERE email = $1`
 
@@ -97,11 +98,11 @@ func (db *DB) GetUserByEmail(email string) (*user.User, bool, error) {
 	return &user, true, err
 }
 
-func (db *DB) GetUserByUsername(username string) (*user.User, bool, error) {
+func (db *DB) GetUserByUsername(username string) (*User, bool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
 
-	var user user.User
+	var user User
 
 	query := `SELECT * FROM user WHERE username = $1`
 
@@ -113,7 +114,7 @@ func (db *DB) GetUserByUsername(username string) (*user.User, bool, error) {
 	return &user, true, err
 }
 
-func (db *DB) GetUserBySession(sessionToken string) (*user.User, bool, error) {
+func (db *DB) GetUserBySession(sessionToken string) (*User, bool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
 
@@ -136,7 +137,7 @@ func (db *DB) GetUserBySession(sessionToken string) (*user.User, bool, error) {
 	}
 
 	// Use existing Getuser.User function
-	return db.Getuser.UserById(userID)
+	return db.GetUserById(userID)
 }
 
 func (db *DB) UpdateUserHashedPassword(id int, hashedPassword string) error {
@@ -150,14 +151,14 @@ func (db *DB) UpdateUserHashedPassword(id int, hashedPassword string) error {
 }
 
 // GetTotaluser.UserCountExcludinguser.User returns the total number of users excluding a specific user
-func (db *DB) GetTotalUserCountExcludingUser(currentuser.UserID int) (int, error) {
+func (db *DB) GetTotalUserCountExcludingUser(currentUserID int) (int, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
 
 	var count int
 	query := `SELECT COUNT(*) FROM user WHERE id != ?`
 
-	err := db.GetContext(ctx, &count, query, currentuser.UserID)
+	err := db.GetContext(ctx, &count, query, currentUserID)
 	if err != nil {
 		return 0, err
 	}
@@ -165,15 +166,8 @@ func (db *DB) GetTotalUserCountExcludingUser(currentuser.UserID int) (int, error
 	return count, nil
 }
 
-// user.UserWithLastMessage represents a user with their last message time
-type UserWithLastMessage struct {
-	ID              int     `db:"id" json:"id"`
-	Username        string  `db:"username" json:"username"`
-	LastMessageTime *string `db:"last_message_time" json:"last_message_time"`
-}
-
 // GetPaginateduser.UsersForList returns paginated users ordered by recent chat activity, then alphabetically
-func (db *DB) GetPaginatedUsersForList(currentUserID int, offset, limit int) ([]UserWithLastMessage, error) {
+func (db *DB) GetUserList(currentUserID int) ([]UserWithLastMessageTime, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
 
@@ -191,11 +185,10 @@ func (db *DB) GetPaginatedUsersForList(currentUserID int, offset, limit int) ([]
 		ORDER BY 
 			CASE WHEN MAX(m.created_at) IS NOT NULL THEN 0 ELSE 1 END,
 			MAX(m.created_at) DESC,
-			u.username ASC
-		LIMIT ? OFFSET ?`
+			u.username ASC`
 
-	var users []user.UserWithLastMessage
-	err := db.SelectContext(ctx, &users, query, currentuser.UserID, currentuser.UserID, currentuser.UserID, limit, offset)
+	var users []UserWithLastMessageTime
+	err := db.SelectContext(ctx, &users, query, currentUserID, currentUserID, currentUserID)
 	if err != nil {
 		return nil, err
 	}
@@ -203,8 +196,8 @@ func (db *DB) GetPaginatedUsersForList(currentUserID int, offset, limit int) ([]
 	return users, nil
 }
 
-// Getuser.UserMessagePriority returns a single user with their last message time for a specific requesting user
-func (db *DB) GetUserMessagePriority(currentuser.UserID, targetuser.UserID int) (*UserWithLastMessage, error) {
+// GetUserMessagePriority returns a single user with their last message time for a specific requesting user
+func (db *DB) GetUserMessagePriority(currentUserID, targetUserID int) (*UserWithLastMessageTime, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
 
@@ -220,8 +213,8 @@ func (db *DB) GetUserMessagePriority(currentuser.UserID, targetuser.UserID int) 
 		WHERE u.id = ?
 		GROUP BY u.id, u.username`
 
-	var user user.UserWithLastMessage
-	err := db.GetContext(ctx, &user, query, currentuser.UserID, currentuser.UserID, targetuser.UserID)
+	var user UserWithLastMessageTime
+	err := db.GetContext(ctx, &user, query, currentUserID, currentUserID, targetUserID)
 	if err != nil {
 		return nil, err
 	}

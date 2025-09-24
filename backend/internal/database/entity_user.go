@@ -32,17 +32,21 @@ type UserSummary struct {
 // UserWithLastMessage represents a user with their last message time
 type UserWithLastMessageTime struct {
 	ID              int     `db:"id" json:"id"`
-	Avatar 			[]byte `db:"avatar" json:"avatar"`
-	FName  			string `db:"f_name" json:"f_name"`
-	LName  			string `db:"l_name" json:"l_name"`
+	Avatar          []byte  `db:"avatar" json:"avatar"`
+	FName           string  `db:"f_name" json:"f_name"`
+	LName           string  `db:"l_name" json:"l_name"`
 	LastMessageTime *string `db:"last_message_time" json:"last_message_time"`
 }
-
 
 type UserPatch struct {
 	Avatar   *[]byte `json:"avatar"`
 	Nickname *string `json:"nickname"`
 	Bio      *string `json:"bio"`
+}
+
+// Checks if the context user and target user are the same.
+func (user *User) IsUserIDMatching(targetUserID int) bool {
+	return user.ID == targetUserID
 }
 
 func (db *DB) InsertUser(firstName, lastName, email, hashedPassword, nickname, bio string, dob time.Time, avatar []byte) (int, error) {
@@ -66,7 +70,7 @@ func (db *DB) InsertUser(firstName, lastName, email, hashedPassword, nickname, b
 	return int(id), err
 }
 
-func (db *DB) GetUserById(id int) (*User, bool, error) {
+func (db *DB) UserById(id int) (*User, bool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
 
@@ -82,7 +86,7 @@ func (db *DB) GetUserById(id int) (*User, bool, error) {
 	return &user, true, err
 }
 
-func (db *DB) GetUserByEmail(email string) (*User, bool, error) {
+func (db *DB) UserByEmail(email string) (*User, bool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
 
@@ -98,7 +102,7 @@ func (db *DB) GetUserByEmail(email string) (*User, bool, error) {
 	return &user, true, err
 }
 
-func (db *DB) GetUserByUsername(username string) (*User, bool, error) {
+func (db *DB) UserByUsername(username string) (*User, bool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
 
@@ -114,7 +118,7 @@ func (db *DB) GetUserByUsername(username string) (*User, bool, error) {
 	return &user, true, err
 }
 
-func (db *DB) GetUserBySession(sessionToken string) (*User, bool, error) {
+func (db *DB) UserBySession(sessionToken string) (*User, bool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
 
@@ -137,7 +141,7 @@ func (db *DB) GetUserBySession(sessionToken string) (*User, bool, error) {
 	}
 
 	// Use existing Getuser.User function
-	return db.GetUserById(userID)
+	return db.UserById(userID)
 }
 
 func (db *DB) UpdateUserHashedPassword(id int, hashedPassword string) error {
@@ -151,7 +155,7 @@ func (db *DB) UpdateUserHashedPassword(id int, hashedPassword string) error {
 }
 
 // GetTotaluser.UserCountExcludinguser.User returns the total number of users excluding a specific user
-func (db *DB) GetTotalUserCountExcludingUser(currentUserID int) (int, error) {
+func (db *DB) TotalUserCountExcludingUser(currentUserID int) (int, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
 
@@ -167,20 +171,20 @@ func (db *DB) GetTotalUserCountExcludingUser(currentUserID int) (int, error) {
 }
 
 // GetPaginateduser.UsersForList returns paginated users ordered by recent chat activity, then alphabetically
-func (db *DB) GetUserList(currentUserID int) ([]UserWithLastMessageTime, error) {
+func (db *DB) UserList(currentUserID int) ([]UserWithLastMessageTime, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
 
 	query := `
-		SELECT u.id, u.username, 
+		SELECT u.id, u.f_name, u.l_name 
 			CASE WHEN MAX(m.created_at) IS NOT NULL 
 				THEN datetime(MAX(m.created_at))
 				ELSE NULL 
 			END as last_message_time
 		FROM user u
-		LEFT JOIN message m ON (u.id = m.sender_id OR u.id = m.receiver_id) 
-			AND (m.sender_id = ? OR m.receiver_id = ?)
-		WHERE u.id != ?
+		LEFT JOIN message m ON u.id = (m.sender_id
+			OR m.sender_id = $1)
+		WHERE u.id != $1
 		GROUP BY u.id, u.username
 		ORDER BY 
 			CASE WHEN MAX(m.created_at) IS NOT NULL THEN 0 ELSE 1 END,
@@ -188,36 +192,10 @@ func (db *DB) GetUserList(currentUserID int) ([]UserWithLastMessageTime, error) 
 			u.username ASC`
 
 	var users []UserWithLastMessageTime
-	err := db.SelectContext(ctx, &users, query, currentUserID, currentUserID, currentUserID)
+	err := db.SelectContext(ctx, &users, query, currentUserID)
 	if err != nil {
 		return nil, err
 	}
 
 	return users, nil
-}
-
-// GetUserMessagePriority returns a single user with their last message time for a specific requesting user
-func (db *DB) GetUserMessagePriority(currentUserID, targetUserID int) (*UserWithLastMessageTime, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
-	defer cancel()
-
-	query := `
-		SELECT u.id, u.username, 
-			CASE WHEN MAX(m.created_at) IS NOT NULL 
-				THEN datetime(MAX(m.created_at))
-				ELSE NULL 
-			END as last_message_time
-		FROM user u
-		LEFT JOIN message m ON (u.id = m.sender_id OR u.id = m.receiver_id) 
-			AND (m.sender_id = ? OR m.receiver_id = ?)
-		WHERE u.id = ?
-		GROUP BY u.id, u.username`
-
-	var user UserWithLastMessageTime
-	err := db.GetContext(ctx, &user, query, currentUserID, currentUserID, targetUserID)
-	if err != nil {
-		return nil, err
-	}
-
-	return &user, nil
 }

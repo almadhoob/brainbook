@@ -6,10 +6,10 @@ import (
 	"net/http"
 )
 
-func (app *Application) fetchPostComments(w http.ResponseWriter, r *http.Request) {
+func (app *Application) getPostComments(w http.ResponseWriter, r *http.Request) {
 	pathPostID := r.PathValue("id")
 
-	postID, err := app.parseStringID(pathPostID)
+	postID, err := parseStringID(pathPostID)
 	if err != nil {
 		app.badRequest(w, r, fmt.Errorf("Invalid user ID: %s", pathPostID))
 		return

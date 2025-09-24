@@ -24,7 +24,7 @@ func (app *Application) ServeWebSocket(w http.ResponseWriter, r *http.Request) {
 
 	// Delegate to WebSocket manager for the actual upgrade
 	// Pass session token for validation in WebSocket events
-	err = app.WSManager.HttpToWebsocket(w, r, user.ID, user.Username, sessionCookie.Value)
+	err = app.WSManager.HttpToWebsocket(w, r, user.ID, user.FName, user.LName, sessionCookie.Value)
 	if err != nil {
 		app.serverError(w, r, err)
 		return

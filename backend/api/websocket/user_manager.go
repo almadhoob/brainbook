@@ -15,7 +15,7 @@ func (m *WebsocketManager) GetOnlineUsersData() []map[string]interface{} {
 	for client := range m.clients {
 		users = append(users, map[string]interface{}{
 			"id":       client.userID,
-			"username": client.username,
+			"full_name": client.fullName,
 			"status":   "online",
 		})
 	}
@@ -57,7 +57,7 @@ func (m *WebsocketManager) detectUserStatusChanges() UserStatusUpdate {
 	for client := range m.clients {
 		currentOnlineUsers[client.userID] = UserStatusInfo{
 			ID:       client.userID,
-			Username: client.username,
+			FullName: client.fullName,
 			Status:   StatusOnline,
 		}
 	}
@@ -148,7 +148,7 @@ func (m *WebsocketManager) sendInitialStatusUpdate(client *Client) {
 		if otherClient.userID != client.userID {
 			onlineUsers = append(onlineUsers, UserStatusInfo{
 				ID:       otherClient.userID,
-				Username: otherClient.username,
+				FullName: otherClient.fullName,
 				Status:   StatusOnline,
 			})
 		}

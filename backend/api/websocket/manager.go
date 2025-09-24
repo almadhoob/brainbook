@@ -87,7 +87,7 @@ func (m *WebsocketManager) routeEvent(event Event, c *Client) error {
 }
 
 // HTTP Handler that the has the Manager that allows connections.
-func (m *WebsocketManager) HttpToWebsocket(w http.ResponseWriter, r *http.Request, userID int, username, sessionID string) error {
+func (m *WebsocketManager) HttpToWebsocket(w http.ResponseWriter, r *http.Request, firstName, lastName, sessionID string, userID int) error {
 	// Begins by upgrading the HTTP request
 	conn, err := websocketUpgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -96,7 +96,7 @@ func (m *WebsocketManager) HttpToWebsocket(w http.ResponseWriter, r *http.Reques
 	}
 
 	// Creates new client with user info.
-	client := NewClient(conn, m, userID, username, sessionID)
+	client := NewClient(conn, m, firstName, lastName, sessionID,  userID)
 	// Adds newly created client to manager.
 	m.addClient(client)
 	// Send initial status update to new client

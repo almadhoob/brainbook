@@ -92,7 +92,7 @@ func (app *Application) authenticate(next http.Handler) http.Handler {
 				return
 			}
 
-			user, found, err := app.DB.GetUserBySession(cookie.Value)
+			user, found, err := app.DB.UserBySession(cookie.Value)
 			fmt.Printf("DEBUG: Session lookup - cookie value: %s, found: %v, err: %v\n", cookie.Value, found, err)
 			if err != nil {
 				app.serverError(w, r, err)

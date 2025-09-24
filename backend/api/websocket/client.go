@@ -5,8 +5,9 @@ import (
 	"log"
 	"time"
 
-	"github.com/gorilla/websocket"
 	"brainbook-api/internal/response"
+
+	"github.com/gorilla/websocket"
 )
 
 var (
@@ -22,20 +23,20 @@ type Client struct {
 
 	// Egress is used to avoid concurrent writes on the WebSocket
 	egress        chan Event
-	userID        int    `json:"user_id"`
-	username      string `json:"username"`
-	sessionToken  string `json:"session_token"`
+	userID        int    
+	fullName      string 
+	sessionToken  string
 	lastValidated time.Time
 }
 
 // Initializes a new c with all required values.
-func NewClient(conn *websocket.Conn, manager *WebsocketManager, userID int, username, sessionToken string) *Client {
+func NewClient(conn *websocket.Conn, manager *WebsocketManager, fistName, lastName, sessionToken string, userID int) *Client {
 	return &Client{
 		connection:    conn,
 		manager:       manager,
 		egress:        make(chan Event),
 		userID:        userID,
-		username:      username,
+		fullName:      fistName+" "+lastName,
 		sessionToken:  sessionToken,
 		lastValidated: time.Now(), // Set initial validation time
 	}

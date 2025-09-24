@@ -27,7 +27,7 @@ func (app *Application) backgroundTask(r *http.Request, fn func() error) {
 	}()
 }
 
-func (app *Application) parseStringID(stringID string) (int, error) {
+func parseStringID(stringID string) (int, error) {
 
 	sanitizedID := strings.TrimSpace(stringID)
 

@@ -12,6 +12,6 @@ DROP TABLE IF EXISTS group;
 DROP TABLE IF EXISTS session;
 DROP TABLE IF EXISTS follow_request;
 DROP TABLE IF EXISTS post_comment;
-DROP TABLE IF EXISTS post_visibility;
+DROP TABLE IF EXISTS post_user_can_view;
 DROP TABLE IF EXISTS post;
 DROP TABLE IF EXISTS user;

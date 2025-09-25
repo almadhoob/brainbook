@@ -37,6 +37,8 @@ func (app *Application) createComment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// TODO: Add code to limit file size and validate if the sent file is an image/gif
+
 	currentDateTime := time.CurrentTime()
 
 	// Insert the comment into the database

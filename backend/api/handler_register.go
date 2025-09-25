@@ -34,7 +34,7 @@ func (app *Application) createUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, emailFound, err := app.DB.GetUserByEmail(input.Email)
+	_, emailFound, err := app.DB.UserByEmail(input.Email)
 	if err != nil {
 		app.serverError(w, r, err)
 		return

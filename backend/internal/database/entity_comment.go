@@ -6,11 +6,11 @@ import (
 )
 
 type Comment struct {
-	ID        int       `db:"id" json:"id"`
-	UserID    int       `db:"user_id" json:"user_id"`
 	Content   string    `db:"content" json:"content"`
-	Image     []byte    `db:"image" json:"image"`
+	File      []byte    `db:"image" json:"image"`
 	CreatedAt time.Time `db:"created_at" json:"created_at"`
+
+	UserSummary
 }
 
 func (db DB) InsertComment(postID int, userID int, content string, image []byte, createdAt string) (int, error) {
@@ -34,18 +34,24 @@ func (db DB) InsertComment(postID int, userID int, content string, image []byte,
 	return int(id), err
 }
 
-func (db *DB) GetCommentsForPost(postID int) ([]Comment, error) {
+func (db *DB) CommentsForPost(postID int) ([]Comment, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
 
 	var comments []Comment
 
+	// SUGGESTION: Listing selected fields like this is worth considering (better readability).
 	query := `
-    SELECT c.id, u.id, u.f_name, u.l_name, c.content, c.image, c.created_at
-    FROM comment c
-    JOIN user u ON c.user_id = u.id
-    WHERE c.post_id = $1
-    ORDER BY c.created_at ASC`
+	SELECT u.f_name,
+		u.l_name,
+		u.avatar,
+		c.content,
+		c.image,
+		c.created_at
+	FROM comment c
+	JOIN user u ON c.user_id = u.id
+	WHERE c.post_id = $1
+	ORDER BY c.created_at ASC`
 
 	err := db.SelectContext(ctx, &comments, query, postID)
 	if err != nil {

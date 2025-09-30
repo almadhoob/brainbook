@@ -107,16 +107,17 @@ CREATE TABLE IF NOT EXISTS group_post_comment (
     FOREIGN KEY (user_id) REFERENCES user(id)
 );
 
-CREATE TABLE IF NOT EXISTS private_conversation (
+CREATE TABLE IF NOT EXISTS conversation (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user1_id INTEGER NOT NULL,
     user2_id INTEGER NOT NULL,
+    last_message_time DATETIME DEFAULT CURRENT_TIMESTAMP,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user1_id) REFERENCES user(id),
     FOREIGN KEY (user2_id) REFERENCES user(id)
 );
 
-CREATE TABLE IF NOT EXISTS private_message (
+CREATE TABLE IF NOT EXISTS conversation_message (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     conversation_id INTEGER NOT NULL,
     sender_id INTEGER NOT NULL,

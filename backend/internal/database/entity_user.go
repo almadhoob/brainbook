@@ -22,11 +22,19 @@ type User struct {
 	Bio            string    `db:"bio" json:"bio"`
 }
 
+func (u *User) FullName() string {
+	return u.FName + " " + u.LName
+}
+
 type UserSummary struct {
 	ID     int    `db:"id" json:"id"`
-	Avatar []byte `db:"avatar" json:"avatar"`
 	FName  string `db:"f_name" json:"f_name"`
 	LName  string `db:"l_name" json:"l_name"`
+	Avatar []byte `db:"avatar" json:"avatar"`
+}
+
+func (u *UserSummary) FullName() string {
+	return u.FName + " " + u.LName
 }
 
 // UserWithLastMessage represents a user with their last message time
@@ -169,6 +177,10 @@ func (db *DB) TotalUserCountExcludingUser(currentUserID int) (int, error) {
 
 	return count, nil
 }
+
+// TO DO: Instead of this atrocious function, the conversation table can now be used
+// to retrieve rcently messaged users first. Any other users not paired with the context user in the
+// conversation table can then be display independently in whataever order.
 
 // GetPaginateduser.UsersForList returns paginated users ordered by recent chat activity, then alphabetically
 func (db *DB) UserList(currentUserID int) ([]UserWithLastMessageTime, error) {

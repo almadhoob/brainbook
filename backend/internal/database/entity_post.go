@@ -6,15 +6,14 @@ import (
 )
 
 type Post struct {
-	Id           int       `db:"id" json:"id"`
-	FirstName    string    `db:"f_name" json:"f_name"`
-	LastName     string    `db:"l_name" json:"l_name"`
-	Avatar       []byte    `db:"avatar" json:"avatar"`
+	ID           int       `db:"id" json:"id"`
 	Content      string    `db:"content" json:"content"`
 	File         []byte    `db:"file" json:"file"`
 	CreatedAt    time.Time `db:"created_at" json:"created_at"`
 	CommentCount int       `db:"comment_count" json:"comment_count"`
 	Comments     []Comment `json:"comments"`
+
+	UserSummary 
 }
 
 func (db *DB) PostsByUserID(userID int) (*Post, error) {
@@ -62,15 +61,15 @@ func (db *DB) GetPosts() ([]Post, error) {
 	return posts, nil
 }
 
-func (db *DB) InsertPost(content string, file []byte, currentDateTime string, userID int) (int, error) {
+func (db *DB) InsertPost(userID int, content string, file []byte, currentDateTime string) (int, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
 
 	query := `
-    INSERT INTO post (content, file, created_at, user_id) 
+    INSERT INTO post (user_id, content, file, created_at) 
     VALUES ($1, $2, $3, $4)`
 
-	result, err := db.ExecContext(ctx, query, content, file, currentDateTime, userID)
+	result, err := db.ExecContext(ctx, query, userID, content, file, currentDateTime)
 	if err != nil {
 		return 0, err
 	}

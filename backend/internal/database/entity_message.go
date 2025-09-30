@@ -2,26 +2,53 @@ package database
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"time"
 )
 
-type Message struct {
-	SenderID   int       `db:"sender_id" json:"sender_id"`
-	Sender     string    `db:"sender" json:"sender"`
-	ReceiverID int       `db:"receiver_id" json:"receiver_id"`
-	Message    string    `db:"message" json:"message"`
-	CreatedAt  time.Time `db:"created_at" json:"created_at"`
+type Conversation struct {
+	ID                int       `db:"id" json:"id"`
+	User1ID           int       `db:"user1_id" json:"user1_id"`
+	User2ID           int       `db:"user2_id" json:"user2_id"`
+	Last_message_time time.Time `db:"last_message_time" json:"last_message_time"`
+	CreatedAt         time.Time `db:"created_at" json:"created_at"`
 }
 
-func (db *DB) InsertMessage(senderid, receiverid int, message string, currentDateTime string) (int, error) {
+type Message struct {
+	SenderID  int       `db:"sender_id" json:"sender_id"`
+	Content   string    `db:"content" json:"content"`
+	CreatedAt time.Time `db:"created_at" json:"created_at"`
+}
+
+func (db *DB) ConversationByUserIDs(user1ID, user2ID int) (*Conversation, bool, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+
+	var conversation Conversation
+
+	query := `
+	SELECT * FROM conversation c
+	WHERE (c.user1_id = $1 AND c.user2_id  = $2) 
+       OR (c.user1_id  = $2 AND c.user2_id  = $1)`
+
+	err := db.GetContext(ctx, &conversation, query, user1ID, user2ID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, false, nil
+	}
+
+	return &conversation, true, err
+}
+
+func (db *DB) InsertMessage(senderid int, content string, currentDateTime string) (int, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
 
 	query := `
-    INSERT INTO message (sender_id, receiver_id, message, created_at)
-    VALUES ($1, $2, $3, $4)`
+    INSERT INTO conversation_message (sender_id, message, created_at)
+    VALUES ($1, $2, $3)`
 
-	result, err := db.ExecContext(ctx, query, senderid, receiverid, message, currentDateTime)
+	result, err := db.ExecContext(ctx, query, senderid, content, currentDateTime)
 	if err != nil {
 		return 0, err
 	}
@@ -33,24 +60,51 @@ func (db *DB) InsertMessage(senderid, receiverid int, message string, currentDat
 	return int(id), err
 }
 
-// GetPaginatedMessageHistory returns message history with pagination
-func (db *DB) GetPaginatedMessageHistory(senderid, receiverid, offset, limit int) ([]Message, error) {
+func (db *DB) InsertConversation(user1ID, user2ID int, lastMessageTime, currentDateTime string) (int, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+
+	query := `
+    INSERT INTO conversation (user1_id, user2_id, last_message_time, created_at)
+    VALUES ($1, $2, $3, $4)`
+
+	result, err := db.ExecContext(ctx, query, user1ID, user2ID, lastMessageTime, currentDateTime)
+	if err != nil {
+		return 0, err
+	}
+
+	id, err := result.LastInsertId()
+	if err != nil {
+		return 0, err
+	}
+	return int(id), err
+}
+
+func (db *DB) UpdateConversationLastMessageTime(lastMessageTime string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+
+	query := `UPDATE conversation SET last_message_time = $1`
+
+	_, err := db.ExecContext(ctx, query, lastMessageTime)
+	return err
+}
+
+func (db *DB) PaginatedConversationMessagesByUserIDs(contextUserID, targetUserID, offset, limit int) ([]Message, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
 
 	var messages []Message
 
 	query := `
-    SELECT m.sender_id, m.receiver_id, m.message, m.created_at,
-           u.username as sender
-    FROM message m
-    JOIN user u ON m.sender_id = u.id
-    WHERE (m.sender_id = $1 AND m.receiver_id = $2) 
-       OR (m.sender_id = $2 AND m.receiver_id = $1)
+    SELECT m.sender_id, m.content, m.created_at
+    FROM conversation_message m
+	JOIN user u ON m.sender_id = u.id
+	WHERE m.sender_id = $1 OR m.sender_id = $2
     ORDER BY m.created_at DESC
     LIMIT $3 OFFSET $4`
 
-	err := db.SelectContext(ctx, &messages, query, senderid, receiverid, limit, offset)
+	err := db.SelectContext(ctx, &messages, query, contextUserID, targetUserID, limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -65,7 +119,7 @@ func (db *DB) GetPaginatedMessageHistory(senderid, receiverid, offset, limit int
 }
 
 // GetMessageCount returns total number of messages between two users
-func (db *DB) GetMessageCount(senderid, receiverid int) (int, error) {
+func (db *DB) MessageCount(conversationID int) (int, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
 
@@ -73,9 +127,9 @@ func (db *DB) GetMessageCount(senderid, receiverid int) (int, error) {
 	query := `
     SELECT COUNT(*) 
     FROM message 
-    WHERE (sender_id = $1 AND receiver_id = $2) 
-       OR (sender_id = $2 AND receiver_id = $1)`
+	JOIN private_conversation c ON m.conversation_id = c.id
+	WHERE c.id = $1`
 
-	err := db.GetContext(ctx, &count, query, senderid, receiverid)
+	err := db.GetContext(ctx, &count, query, conversationID)
 	return count, err
 }

@@ -14,7 +14,6 @@ import (
 	// "github.com/jmoiron/sqlx"
 
 	_ "github.com/golang-migrate/migrate/v4/database/sqlite3"
-	// "github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
 )
 

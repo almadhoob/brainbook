@@ -73,7 +73,7 @@ func SendMessageHandler(event Event, c *Client) error {
 	currentDateTime := t.CurrentTime()
 
 	// Save message to database
-	_, err = c.manager.DB.InsertMessage(user.ID, chatevent.ReceiverID, chatevent.Message, currentDateTime)
+	_, err = c.manager.DB.InsertMessage(user.ID, chatevent.Message, currentDateTime)
 	if err != nil {
 		return fmt.Errorf("failed to save message: %v", err)
 	}

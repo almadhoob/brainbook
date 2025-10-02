@@ -3,90 +3,96 @@ package api
 import (
 	"fmt"
 	"net/http"
-	"strconv"
 
+	"brainbook-api/internal/database"
 	"brainbook-api/internal/response"
 )
 
-// UserProfileResponse represents the user profile data for the frontend
-type UserProfileResponse struct {
-	ID       int    `json:"id"`
-	Username string `json:"username"`
-}
-
-// UserMessagePriorityResponse represents user message priority data
-type UserMessagePriorityResponse struct {
-	ID              int     `json:"id"`
-	Username        string  `json:"username"`
-	LastMessageTime *string `json:"last_message_time"`
-}
-
 // fetchUserProfile handles GET /protected/v1/user/me
 // Returns current user's profile information
-func (app *Application) fetchUserProfile(w http.ResponseWriter, r *http.Request) {
-	// Get current user from context (set by authentication middleware)
-	user := contextGetAuthenticatedUser(r)
+func (app *Application) getUserProfile(w http.ResponseWriter, r *http.Request) {
+	// Retrieves user from context
+	contextUser := contextGetAuthenticatedUser(r)
+	pathUserID := r.PathValue("id")
 
-	// Create response with user profile data
-	userProfile := UserProfileResponse{
-		ID:       user.ID,
-		Username: user.Username,
-	}
-
-	// Return user profile as JSON
-	err := response.JSON(w, http.StatusOK, userProfile)
+	targetUserID, err := parseStringID(pathUserID)
 	if err != nil {
-		app.serverError(w, r, err)
-	}
-}
-
-// fetchUserMessagePriority handles GET /protected/v1/user/{id}/message-priority
-// Returns user's message priority data for list ordering
-func (app *Application) fetchUserMessagePriority(w http.ResponseWriter, r *http.Request) {
-	// Get current user from context
-	currentUser := contextGetAuthenticatedUser(r)
-
-	// Get target user ID from URL path parameter
-	userIDStr := r.PathValue("id")
-	if userIDStr == "" {
-		app.badRequest(w, r, fmt.Errorf("user ID is required"))
+		app.badRequest(w, r, fmt.Errorf("Invalid user ID: %s", pathUserID))
 		return
 	}
 
-	targetUserID, err := strconv.Atoi(userIDStr)
-	if err != nil {
-		app.badRequest(w, r, fmt.Errorf("invalid user ID: %s", userIDStr))
-		return
+	isUserIDMatching := contextUser.IsUserIDMatching(targetUserID)
+
+	var profileUser *database.User
+
+	if isUserIDMatching {
+		// Checks if the target user exists.
+		targetUser, exists, err := app.DB.UserById(targetUserID)
+		if err != nil {
+			app.serverError(w, r, err)
+			return
+		}
+		if !exists {
+			app.notFound(w, r)
+			return
+		}
+		profileUser = targetUser
+	} else {
+		profileUser = contextUser
 	}
 
-	// Check if target user exists
-	_, exists, err := app.DB.GetUserById(targetUserID)
-	if err != nil {
-		app.serverError(w, r, err)
-		return
-	}
-	if !exists {
-		app.notFound(w, r)
-		return
-	}
+	/* If profile is private, check if context user if a follower (accepted in follow_request table).
+	   If not, respond with 401 Unauthorized. Refer to:
+	   github.com/0xdod/go-realworld/blob/master/conduit/user.go#L39*/
 
-	// Get user with message priority data
-	userWithMessage, err := app.DB.GetUserMessagePriority(currentUser.ID, targetUserID)
+	// TO DO: Create the two functions below. Kindly do not use AI as it is not needed!
+	followerCount, err := app.DB.UserFollowerCount(targetUserID)
 	if err != nil {
 		app.serverError(w, r, err)
 		return
 	}
 
-	// Create response
-	userResponse := UserMessagePriorityResponse{
-		ID:              userWithMessage.ID,
-		Username:        userWithMessage.Username,
-		LastMessageTime: userWithMessage.LastMessageTime,
-	}
-
-	// Return as JSON
-	err = response.JSON(w, http.StatusOK, userResponse)
+	followingCount, err := app.DB.UserFollowingCount(targetUserID)
 	if err != nil {
 		app.serverError(w, r, err)
+		return
+	}
+
+	posts, err := app.DB.PostsByUserID(targetUserID)
+	if err != nil {
+		app.serverError(w, r, err)
+		return
+	}
+
+	userProfileResponse := map[string]any{
+		"user_id":         profileUser.ID,
+		"full_name":       profileUser.FullName(),
+		"email":           profileUser.Email,
+		"dob":             profileUser.DOB,
+		"follower_count":  followerCount,
+		"following_count": followingCount,
+		"posts":           posts,
+		/*Used in the frontend to determine when
+		  to display the follow/unfollow button*/
+		"is_self": isUserIDMatching,
+	}
+
+	// Potentially empty values
+	if profileUser.Avatar != nil {
+		userProfileResponse["avatar"] = profileUser.Avatar
+	}
+
+	if profileUser.Nickname != "" {
+		userProfileResponse["nickname"] = profileUser.Nickname
+	}
+
+	if profileUser.Bio != "" {
+		userProfileResponse["bio"] = profileUser.Bio
+	}
+
+	err = response.JSON(w, http.StatusOK, userProfileResponse)
+	if err != nil {
+		app.serverError(w, r, err)
+		return
 	}
 }

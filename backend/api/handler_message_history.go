@@ -1,149 +1,133 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"brainbook-api/internal/response"
-	"brainbook-api/internal/validator"
+	v "brainbook-api/internal/validator"
 )
 
-// MessageHistoryResponse represents the structure for message history API response
 type MessageHistoryResponse struct {
-	SenderID   int    `json:"sender_id"`
-	Sender     string `json:"sender"`
-	ReceiverID int    `json:"receiver_id"`
-	Message    string `json:"message"`
-	CreatedAt  string `json:"created_at"`
+	SenderID  int    `json:"sender_id"`
+	Content   string `json:"content"`
+	CreatedAt string `json:"created_at"`
 }
 
-// getMessageHistory handles GET /protected/v1/message-history
-// Returns paginated message history between current user and another user
-func (app *Application) getMessageHistory(w http.ResponseWriter, r *http.Request) {
-	user := contextGetAuthenticatedUser(r)
+func (app *Application) getConversation(w http.ResponseWriter, r *http.Request) {
+	var validator v.Validator
 
-	var input struct {
-		UserID    int                 `json:"user_id"`
-		Page      int                 `json:"page"`
-		Limit     int                 `json:"limit"`
-		Validator validator.Validator `json:"-"`
-	}
+	contextUser := contextGetAuthenticatedUser(r)
+	pathUserID := r.PathValue("id")
 
-	// Get target user ID from query parameter
-	targetUserIDStr := r.URL.Query().Get("user_id")
-	input.Validator.CheckField(validator.NotBlank(targetUserIDStr), "user_id", "user_id parameter is required")
-
-	targetUserID, err := strconv.Atoi(targetUserIDStr)
+	targetUserID, err := parseStringID(pathUserID)
 	if err != nil {
-		input.Validator.AddFieldError("user_id", "Invalid user_id parameter")
-	} else {
-		input.UserID = targetUserID
-
-		if targetUserID != user.ID {
-			_, exists, err := app.DB.GetUserById(targetUserID)
-			if err != nil {
-				app.serverError(w, r, err)
-				return
-			}
-			input.Validator.CheckField(exists, "user_id", "User does not exist")
-		} else {
-			input.Validator.AddFieldError("user_id", "Cannot get message history with yourself")
-		}
+		app.badRequest(w, r, fmt.Errorf("Invalid conversation ID: %s", pathUserID))
+		return
 	}
 
-	if input.Validator.HasErrors() {
-		app.failedValidation(w, r, input.Validator)
+	_, exists, err := app.DB.ConversationByUserIDs(contextUser.ID, targetUserID)
+	if err != nil {
+		app.serverError(w, r, err)
+		return
+	}
+	
+	if !exists {
+		// Responds with an empty slice when no conversation exists
+		responseData := map[string]interface{}{
+			"messages":       []MessageHistoryResponse{},
+			"target_user_id": targetUserID,
+		}
+
+		err = response.JSON(w, http.StatusOK, responseData)
+		if err != nil {
+			app.serverError(w, r, err)
+			return
+		}
 		return
 	}
 
 	// Parse pagination parameters
-	pageStr := r.URL.Query().Get("page")
-	limitStr := r.URL.Query().Get("limit")
+	pageParameter := r.URL.Query().Get("page")
+	limitParameter := r.URL.Query().Get("limit")
+
+	cleanPageParameter := strings.TrimSpace(pageParameter)
+	cleanLimitParameter := strings.TrimSpace(limitParameter)
 
 	// Default values
-	input.Page = 1
-	input.Limit = 20
+	var page = 1
+	var limit = 10
 
 	// Parse and validate page parameter
-	if pageStr != "" {
-		parsedPage, err := strconv.Atoi(pageStr)
+	if cleanPageParameter != "" {
+		parsedPage, err := strconv.Atoi(cleanPageParameter)
 		if err != nil {
-			input.Validator.AddFieldError("page", "Invalid page parameter")
+			validator.AddError("Invalid page parameter value")
 		} else {
-			input.Validator.CheckField(validator.MinInt(parsedPage, 1), "page", "Page must be at least 1")
-			input.Validator.CheckField(validator.MaxInt(parsedPage, 1000), "page", "Page cannot exceed 1000")
-			input.Page = parsedPage
+			validator.Check(v.MinInt(parsedPage, 1), "Page value must be at least 1")
+			validator.Check(v.MaxInt(parsedPage, 10), "Page value cannot exceed 1000")
+			page = parsedPage
 		}
 	}
 
 	// Parse and validate limit parameter
-	if limitStr != "" {
-		parsedLimit, err := strconv.Atoi(limitStr)
+	if cleanLimitParameter != "" {
+		parsedLimit, err := strconv.Atoi(cleanLimitParameter)
 		if err != nil {
-			input.Validator.AddFieldError("limit", "Invalid limit parameter")
+			validator.AddError("Invalid limit paramete value")
 		} else {
-			input.Validator.CheckField(validator.MinInt(parsedLimit, 1), "limit", "Limit must be at least 1")
-			input.Validator.CheckField(validator.MaxInt(parsedLimit, 100), "limit", "Limit cannot exceed 100")
-			input.Limit = parsedLimit
+			validator.Check(v.MinInt(parsedLimit, 1), "Limit value must be at least 1")
+			validator.Check(v.MaxInt(parsedLimit, 20), "Limit value cannot exceed 100")
+			limit = parsedLimit
 		}
 	}
 
-	if input.Validator.HasErrors() {
-		app.failedValidation(w, r, input.Validator)
-		return
-	}
+	offset := (page - 1) * limit
 
-	// Calculate offset
-	offset := (input.Page - 1) * input.Limit
-
-	// Get paginated messages from database
-	messages, err := app.DB.GetPaginatedMessageHistory(user.ID, input.UserID, offset, input.Limit)
+	messages, err := app.DB.PaginatedConversationMessagesByUserIDs(contextUser.ID, targetUserID, offset, limit)
 	if err != nil {
 		app.serverError(w, r, err)
 		return
 	}
 
-	// Get total message count
-	totalCount, err := app.DB.GetMessageCount(user.ID, input.UserID)
+	totalMessageCount, err := app.DB.MessageCount(targetUserID)
 	if err != nil {
 		app.serverError(w, r, err)
 		return
 	}
 
-	// Convert to response format
 	var messageHistory []MessageHistoryResponse
-	for _, dbMessage := range messages {
+	for _, Message := range messages {
 		messageHistory = append(messageHistory, MessageHistoryResponse{
-			SenderID:   dbMessage.SenderID,
-			Sender:     dbMessage.Sender,
-			ReceiverID: dbMessage.ReceiverID,
-			Message:    dbMessage.Message,
-			CreatedAt:  dbMessage.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+			SenderID:  Message.SenderID,
+			Content:   Message.Content,
+			CreatedAt: Message.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 		})
 	}
 
 	// Calculate pagination metadata
-	totalPages := (totalCount + input.Limit - 1) / input.Limit
-	hasNext := input.Page < totalPages
-	hasPrevious := input.Page > 1
+	totalPages := (totalMessageCount + limit - 1) / limit
+	hasNext := page < totalPages
+	hasPrevious := page > 1
 
-	// Prepare response with pagination metadata
 	responseData := map[string]interface{}{
 		"messages": messageHistory,
 		"pagination": map[string]interface{}{
-			"current_page": input.Page,
+			"current_page": page,
 			"total_pages":  totalPages,
-			"total_count":  totalCount,
-			"limit":        input.Limit,
+			"total_count":  totalMessageCount,
+			"limit":        limit,
 			"has_next":     hasNext,
 			"has_previous": hasPrevious,
 		},
-		"target_user_id": input.UserID,
+		"target_user_id": targetUserID,
 	}
 
-	// Return the paginated message history as JSON
 	err = response.JSON(w, http.StatusOK, responseData)
 	if err != nil {
 		app.serverError(w, r, err)
+		return
 	}
 }

@@ -24,10 +24,6 @@ func (app *Application) createComment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user := contextGetAuthenticatedUser(r)
-	if user == nil {
-		app.authenticationRequired(w, r)
-		return
-	}
 
 	input.Validator.Check(validator.NotBlank(input.Content), "Content must not be empty")
 	input.Validator.Check(validator.MaxRunes(input.Content, 500), "Content must not exceed 500 characters")
@@ -49,13 +45,12 @@ func (app *Application) createComment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	responseData := map[string]any{
-		"comment_id": commentID,
-		"f_name":     user.FName,
-		"l_name":     user.LName,
-		"avatar":     user.Avatar,
-		"content":    input.Content,
-		"image":      input.Image,
-		"created_at": currentDateTime,
+		"comment_id":     commentID,
+		"user_full_name": user.FullName(),
+		"user_avatar":    user.Avatar,
+		"content":        input.Content,
+		"image":          input.Image,
+		"created_at":     currentDateTime,
 	}
 
 	err = response.JSON(w, http.StatusCreated, responseData)

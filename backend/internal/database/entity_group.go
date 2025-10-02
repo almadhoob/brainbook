@@ -39,6 +39,18 @@ type GroupEvent struct {
 	Participants       []GroupMember `json:"participants,omitempty"`
 }
 
+type GroupPost struct {
+	ID           int       `db:"id" json:"id"` //post id
+	GroupID      int       `db:"group_id" json:"group_id"`
+	Content      string    `db:"content" json:"content"`
+	Image        []byte    `db:"image" json:"image,omitempty"`
+	CreatedAt    time.Time `db:"created_at" json:"created_at"`
+	CommentCount int       `db:"comment_count" json:"comment_count"`
+	Comments     []Comment `json:"comments"`
+
+     UserSummary
+}
+
 func (db *DB) InsertGroup(ownerID int, title string, description string, createdAt string) (int, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
@@ -251,4 +263,92 @@ func (db *DB) GetEventParticipants(eventID int) ([]GroupMember, error) {
 	}
 
 	return participants, nil
+}
+
+//queries need adjusting
+
+func (db *DB) InsertGroupPost(content string, image []byte, currentDateTime string, userID int, groupID int) (int, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+
+	query := `
+		INSERT INTO group_post (user_id, group_id, content, file, created_at)
+		VALUES ($1, $2, $3, $4, $5)
+	`
+
+	result, err := db.ExecContext(ctx, query, userID, groupID, content, image, currentDateTime)
+	if err != nil {
+		return 0, err
+	}
+
+	postID, err := result.LastInsertId()
+	if err != nil {
+		return 0, err
+	}
+
+	return int(postID), nil
+}
+
+//retrieve posts for a specific group along with user details and comment count
+func (db *DB) GetGroupPosts(groupID int) ([]GroupPost, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+
+	query := `
+	SELECT 
+		p.id, p.user_id, u.f_name, u.l_name, u.avatar, gm.role, p.group_id, p.content, p.image, p.created_at,
+		COALESCE(COUNT(c.id), 0) as comment_count
+	FROM group_post p
+	JOIN user u ON p.user_id = u.id
+	JOIN group_member gm ON p.user_id = gm.user_id AND p.group_id = gm.group_id
+	LEFT JOIN comment c ON p.id = c.post_id
+	WHERE p.group_id = ?
+	GROUP BY p.id
+	ORDER BY p.created_at DESC;
+	`
+
+	var posts []GroupPost
+	err := db.SelectContext(ctx, &posts, query, groupID)
+	if err != nil {
+		return nil, err
+	}
+
+	return posts, nil
+}
+
+
+func (db *DB) GetGroupPostByID(groupPostID int) (*GroupPost, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+
+	query := `
+		SELECT 
+			gp.id AS group_post_id,
+			gp.group_id,
+			g.name AS group_name,
+			gp.user_id,
+			u.f_name,
+			u.l_name,
+			u.avatar,
+			gp.content,
+			gp.image,
+			gp.created_at,
+			COUNT(c.id) AS comment_count
+		FROM group_post AS gp
+		JOIN "group" AS g ON gp.group_id = g.id
+		JOIN user AS u ON gp.user_id = u.id
+		LEFT JOIN comment AS c ON c.group_post_id = gp.id
+		WHERE gp.id = ?
+		GROUP BY 
+			gp.id, gp.group_id, g.name, gp.user_id, 
+			u.f_name, u.l_name, u.avatar, gp.content, gp.image, gp.created_at;
+	`
+
+	var groupPost GroupPost
+	err := db.GetContext(ctx, &groupPost, query, groupPostID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &groupPost, nil
 }

@@ -45,14 +45,14 @@ func (app *Application) createAuthenticationToken(w http.ResponseWriter, r *http
 
 	switch validator.IsEmail(input.Identifier) {
 	case true:
-		user, found, err = app.DB.GetUserByEmail(input.Identifier)
+		user, found, err = app.DB.UserByEmail(input.Identifier)
 		if err != nil {
 			app.serverError(w, r, err)
 			return
 		}
 		input.Validator.CheckField(found, "identifier", "Email address could not be found")
 	case false:
-		user, found, err = app.DB.GetUserByUsername(input.Identifier)
+		user, found, err = app.DB.UserByUsername(input.Identifier)
 		if err != nil {
 			app.serverError(w, r, err)
 			return

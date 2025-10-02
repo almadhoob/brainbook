@@ -21,7 +21,7 @@ func (app *Application) routes() http.Handler {
 	registry.GetMethod("/protected/ws", app.ServeWebSocket).
 		GetMethod("/protected/v1/profile/user/{id}", app.getUserProfile).
 		GetMethod("/protected/v1/user-list", app.getUserList).
-		GetMethod("/protected/v1/private-messages/{id}", app.getConversation).
+		GetMethod("/protected/v1/private-messages/user/{id}", app.getConversation).
 		GetMethod("/protected/v1/posts", app.getPosts).
 		GetMethod("/protected/v1/comments", app.getPostComments).
 		PostMethod("/protected/v1/posts", app.createPost).

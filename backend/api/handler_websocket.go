@@ -10,10 +10,6 @@ func (app *Application) ServeWebSocket(w http.ResponseWriter, r *http.Request) {
 
 	// Get authenticated user from context (middleware already validated session)
 	user := contextGetAuthenticatedUser(r)
-	if user == nil {
-		app.authenticationRequired(w, r)
-		return
-	}
 
 	// Get session token from cookie
 	sessionCookie, err := r.Cookie("session_token")
@@ -24,7 +20,7 @@ func (app *Application) ServeWebSocket(w http.ResponseWriter, r *http.Request) {
 
 	// Delegate to WebSocket manager for the actual upgrade
 	// Pass session token for validation in WebSocket events
-	err = app.WSManager.HttpToWebsocket(w, r, user.ID, user.FName, user.LName, sessionCookie.Value)
+	err = app.WSManager.HttpToWebsocket(w, r, user.FName, user.LName, sessionCookie.Value, user.ID)
 	if err != nil {
 		app.serverError(w, r, err)
 		return

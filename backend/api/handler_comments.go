@@ -15,7 +15,7 @@ func (app *Application) getPostComments(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	comments, err := app.DB.GetCommentsForPost(postID)
+	comments, err := app.DB.CommentsForPost(postID)
 	if err != nil {
 		app.serverError(w, r, err)
 		return

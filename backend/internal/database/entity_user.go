@@ -27,7 +27,7 @@ func (u *User) FullName() string {
 }
 
 type UserSummary struct {
-	ID     int    `db:"id" json:"id"`
+	ID     int    `db:"user_id" json:"user_id"`
 	FName  string `db:"f_name" json:"f_name"`
 	LName  string `db:"l_name" json:"l_name"`
 	Avatar []byte `db:"avatar" json:"avatar"`
@@ -56,6 +56,8 @@ type UserPatch struct {
 func (user *User) IsUserIDMatching(targetUserID int) bool {
 	return user.ID == targetUserID
 }
+
+
 
 func (db *DB) InsertUser(firstName, lastName, email, hashedPassword, nickname, bio string, dob time.Time, avatar []byte) (int, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)

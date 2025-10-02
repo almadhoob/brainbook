@@ -140,10 +140,13 @@ CREATE TABLE IF NOT EXISTS group_message (
 CREATE TABLE IF NOT EXISTS event (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     group_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
     title TEXT NOT NULL,
     description TEXT,
     time DATETIME NOT NULL,
-    FOREIGN KEY (group_id) REFERENCES group(id)
+    FOREIGN KEY (group_id) REFERENCES group(id),
+    FOREIGN KEY (user_id) REFERENCES user(id)
+
 );
 
 CREATE TABLE IF NOT EXISTS event_has_user (

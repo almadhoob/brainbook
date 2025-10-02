@@ -1,6 +1,8 @@
 package api
 
 import (
+	"brainbook-api/api/websocket"
+	"brainbook-api/internal/database"
 	"context"
 	"errors"
 	"fmt"
@@ -9,8 +11,6 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"brainbook-api/api/websocket"
-	"brainbook-api/internal/database"
 	"strings"
 	"sync"
 	"syscall"
@@ -18,14 +18,14 @@ import (
 )
 
 /*
- Defines a config struct to hold all Application configuration settings.
- values are set from env variables when the Application starts.
+Defines a config struct to hold all Application configuration settings.
+values are set from env variables when the Application starts.
 */
 type Config struct {
 	BaseURL  string
 	HttpPort int
 	DB       struct {
-		DSN string
+		DSN         string
 		Automigrate bool
 	}
 	// JWT struct {

@@ -2,7 +2,7 @@ package api
 
 import (
 	"net/http"
-	"strconv"
+	"time"
 
 	"brainbook-api/internal/request"
 	"brainbook-api/internal/security"
@@ -17,13 +17,14 @@ func (app *Application) createUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var input struct {
-		FirstName string              `json:"first-name"`
-		LastName  string              `json:"last-name"`
-		Username  string              `json:"username"`
+		FName     string              `json:"f_name"`
+		LName     string              `json:"l_name"`
 		Email     string              `json:"email"`
 		Password  string              `json:"password"`
-		Age       string              `json:"age"`
-		Sex       string              `json:"sex"`
+		DOB       time.Time           `json:"dob"`
+		Avatar    []byte              `json:"avatar"`
+		Nickname  string              `json:"nickname"`
+		Bio       string              `json:"bio"`
 		Validator validator.Validator `json:"-"`
 	}
 
@@ -33,33 +34,24 @@ func (app *Application) createUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, usernameFound, err := app.DB.GetUserByUsername(input.Username)
-	if err != nil {
-		app.serverError(w, r, err)
-		return
-	}
-
-	_, emailFound, err := app.DB.GetUserByEmail(input.Email)
+	_, emailFound, err := app.DB.UserByEmail(input.Email)
 	if err != nil {
 		app.serverError(w, r, err)
 		return
 	}
 
 	// First Name validation
-	input.Validator.CheckField(validator.NotBlank(input.FirstName), "first-name", "First name is required")
-	input.Validator.CheckField(validator.MinRunes(input.FirstName, 2), "first-name", "First name must be at least 2 characters")
-	input.Validator.CheckField(validator.MaxRunes(input.FirstName, 50), "first-name", "First name limit exceeded (50 characters)")
+	input.Validator.CheckField(validator.NotBlank(input.FName), "first-name", "First name is required")
+	input.Validator.CheckField(validator.MinRunes(input.FName, 2), "first-name", "First name must be at least 2 characters")
+	input.Validator.CheckField(validator.MaxRunes(input.FName, 50), "first-name", "First name limit exceeded (50 characters)")
 
 	// Last Name validation
-	input.Validator.CheckField(validator.NotBlank(input.LastName), "last-name", "Last name is required")
-	input.Validator.CheckField(validator.MinRunes(input.LastName, 2), "last-name", "Last name must be at least 2 characters")
-	input.Validator.CheckField(validator.MaxRunes(input.LastName, 50), "last-name", "Last name limit exceeded (50 characters)")
+	input.Validator.CheckField(validator.NotBlank(input.LName), "last-name", "Last name is required")
+	input.Validator.CheckField(validator.MinRunes(input.LName, 2), "last-name", "Last name must be at least 2 characters")
+	input.Validator.CheckField(validator.MaxRunes(input.LName, 50), "last-name", "Last name limit exceeded (50 characters)")
 
-	// Username validation
-	input.Validator.CheckField(validator.NotBlank(input.Username), "username", "Username is required")
-	input.Validator.CheckField(validator.MinRunes(input.Username, 3), "username", "Username must be at least 3 characters")
-	input.Validator.CheckField(validator.MaxRunes(input.Username, 30), "username", "Username limit exceeded (30 characters)")
-	input.Validator.CheckField(!usernameFound, "username", "Username is already in use")
+	// Nickname validation
+	input.Validator.CheckField(validator.MaxRunes(input.Nickname, 30), "username", "Username limit exceeded (30 characters)")
 
 	// Email validation
 	input.Validator.CheckField(validator.NotBlank(input.Email), "email", "Email is required")
@@ -72,24 +64,13 @@ func (app *Application) createUser(w http.ResponseWriter, r *http.Request) {
 	input.Validator.CheckField(validator.MaxRunes(input.Password, 72), "password", "Password must be no more than 72 characters")
 	input.Validator.CheckField(validator.NotIn(input.Password, security.CommonPasswords...), "password", "Password is too common")
 
-	// Age validation
-	input.Validator.CheckField(validator.NotBlank(input.Age), "age", "Age is required")
+	// DOB validation
+	// input.Validator.CheckField(validator.NotBlank(input.DOB), "age", "Age is required")
 
-	age, err := strconv.Atoi(input.Age)
-	if err != nil {
-		input.Validator.AddFieldError("age", "Age must be a valid number")
-	}
-	input.Validator.CheckField(validator.MinInt(age, 13), "age", "You must be 13 or older to register")
-	input.Validator.CheckField(validator.MaxInt(age, 120), "age", "Dead men tell no tales...")
+	// TODO: Calculate the user's age based on their DOB
 
-	// Sex validation
-	input.Validator.CheckField(validator.NotBlank(input.Sex), "sex", "Sex is required")
-
-	sex, err := strconv.Atoi(input.Sex)
-	if err != nil {
-		input.Validator.AddFieldError("sex", "Please select a valid option")
-	}
-	input.Validator.CheckField(validator.Between(sex, 0, 1), "sex", "Please select a valid option")
+	// input.Validator.CheckField(validator.MinInt(age, 13), "age", "You must be 13 or older to register")
+	// input.Validator.CheckField(validator.MaxInt(age, 120), "age", "Dead men tell no tales...")
 
 	if input.Validator.HasErrors() {
 		app.failedValidation(w, r, input.Validator)
@@ -102,7 +83,7 @@ func (app *Application) createUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = app.DB.InsertUser(input.FirstName, input.LastName, input.Username, input.Email, hashedPassword, age, sex == 1)
+	_, err = app.DB.InsertUser(input.FName, input.LName, input.Email, hashedPassword, input.Nickname, input.Bio, input.DOB, input.Avatar)
 	if err != nil {
 		app.serverError(w, r, err)
 		return

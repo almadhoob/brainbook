@@ -51,19 +51,19 @@ type SendMessageEvent struct {
 	SessionToken string `json:"session_token"` // Session token for validation
 }
 
+// SendTypingEvent is the payload sent in the send_typing event
+type SendTypingEvent struct {
+	ReceiverID   int    `json:"receiver_id"`   // Target user
+	IsTyping     bool   `json:"is_typing"`     // true = start typing, false = stop typing
+	SessionToken string `json:"session_token"` // Session token for validation
+}
+
 // ReceiveMessageEvent is returned when responding to send_message
 type ReceiveMessageEvent struct {
 	Message    string `json:"message"`
 	SenderID   int    `json:"sender_id"`   // Who sent the message
 	ReceiverID int    `json:"receiver_id"` // Who received the message
 	SentAt     string `json:"sent_at"`     // Server adds timestamp
-}
-
-// SendTypingEvent is the payload sent in the send_typing event
-type SendTypingEvent struct {
-	ReceiverID   int    `json:"receiver_id"`   // Target user
-	IsTyping     bool   `json:"is_typing"`     // true = start typing, false = stop typing
-	SessionToken string `json:"session_token"` // Session token for validation
 }
 
 // NewTypingEvent is returned when responding to send_typing
@@ -79,7 +79,7 @@ type ClientList map[*Client]bool
 // UserStatusInfo represents a user's status information
 type UserStatusInfo struct {
 	ID              int     `json:"id"`
-	Username        string  `json:"username"`
+	FullName        string  `json:"full_name"`
 	Status          int     `json:"status"`
 	LastMessageTime *string `json:"last_message_time"`
 }

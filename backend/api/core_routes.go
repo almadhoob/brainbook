@@ -17,19 +17,15 @@ func (app *Application) routes() http.Handler {
 		PostMethod("/v1/login", app.createAuthenticationToken).
 		PostMethod("/v1/register", app.createUser)
 
-	// Guest routes (optional authentication - guests allowed, user context if authenticated)
-	registry.GetMethod("/guest/v1/posts", app.fetchPosts).
-		GetMethod("/guest/v1/categories", app.fetchCategories).
-		GetMethod("/guest/v1/comments", app.fetchPostComments)
-
 	// Protected routes (authentication required)
 	registry.GetMethod("/protected/ws", app.ServeWebSocket).
-		GetMethod("/protected/v1/user/me", app.fetchUserProfile).
-		GetMethod("/protected/v1/user/{id}/message-priority", app.fetchUserMessagePriority).
-		GetMethod("/protected/v1/user-list", app.fetchUserList).
-		GetMethod("/protected/v1/message-history", app.getMessageHistory).
-		PostMethod("/protected/v1/newcomment", app.createComment).
-		PostMethod("/protected/v1/newpost", app.createPost).
+		GetMethod("/protected/v1/profile/user/{id}", app.getUserProfile).
+		GetMethod("/protected/v1/user-list", app.getUserList).
+		GetMethod("/protected/v1/private-messages/{id}", app.getConversation).
+		GetMethod("/protected/v1/posts", app.getPosts).
+		GetMethod("/protected/v1/comments", app.getPostComments).
+		PostMethod("/protected/v1/posts", app.createPost).
+		PostMethod("/protected/v1/comments", app.createComment).
 		PostMethod("/protected/v1/logout", app.logout)
 
 	publicMux, guestMux, protectedMux := registry.GetMuxes()

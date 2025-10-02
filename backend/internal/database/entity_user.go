@@ -5,30 +5,69 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
 	"brainbook-api/internal/cookie"
 )
 
 type User struct {
-	ID             int    `db:"id" json:"id"`
-	FName          string `db:"f_name" json:"-"`
-	LName          string `db:"l_name" json:"-"`
-	Age            int    `db:"age" json:"-"`
-	Sex            bool   `db:"sex" json:"-"`
-	Username       string `db:"username" json:"username"`
-	Email          string `db:"email" json:"email"`
-	HashedPassword string `db:"hashed_password" json:"-"`
+	ID             int       `db:"id" json:"id"`
+	FName          string    `db:"f_name" json:"f_name"`
+	LName          string    `db:"l_name" json:"l_name"`
+	Email          string    `db:"email" json:"email"`
+	HashedPassword string    `db:"hashed_password" json:"-"`
+	DOB            time.Time `db:"dob" json:"dob"`
+	Avatar         []byte    `db:"avatar" json:"avatar"`
+	Nickname       string    `db:"nickname" json:"nickname"`
+	Bio            string    `db:"bio" json:"bio"`
 }
 
-func (db *DB) InsertUser(firstName, lastName, username, email, hashedPassword string, age int, sex bool) (int, error) {
+func (u *User) FullName() string {
+	return u.FName + " " + u.LName
+}
+
+type UserSummary struct {
+	ID     int    `db:"user_id" json:"user_id"`
+	FName  string `db:"f_name" json:"f_name"`
+	LName  string `db:"l_name" json:"l_name"`
+	Avatar []byte `db:"avatar" json:"avatar"`
+}
+
+func (u *UserSummary) FullName() string {
+	return u.FName + " " + u.LName
+}
+
+// UserWithLastMessage represents a user with their last message time
+type UserWithLastMessageTime struct {
+	ID              int     `db:"id" json:"id"`
+	Avatar          []byte  `db:"avatar" json:"avatar"`
+	FName           string  `db:"f_name" json:"f_name"`
+	LName           string  `db:"l_name" json:"l_name"`
+	LastMessageTime *string `db:"last_message_time" json:"last_message_time"`
+}
+
+type UserPatch struct {
+	Avatar   *[]byte `json:"avatar"`
+	Nickname *string `json:"nickname"`
+	Bio      *string `json:"bio"`
+}
+
+// Checks if the context user and target user are the same.
+func (user *User) IsUserIDMatching(targetUserID int) bool {
+	return user.ID == targetUserID
+}
+
+
+
+func (db *DB) InsertUser(firstName, lastName, email, hashedPassword, nickname, bio string, dob time.Time, avatar []byte) (int, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
 
 	query := `
-    INSERT INTO user (f_name, l_name, username, email, hashed_password, age, sex)
-    VALUES ($1, $2, $3, $4, $5, $6, $7)`
+    INSERT INTO user (f_name, l_name, email, hashed_password, dob, avatar, nickname, bio)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
 
-	result, err := db.ExecContext(ctx, query, firstName, lastName, username, email, hashedPassword, age, sex)
+	result, err := db.ExecContext(ctx, query, firstName, lastName, email, hashedPassword, dob, avatar, nickname, bio)
 	if err != nil {
 		return 0, err
 	}
@@ -41,7 +80,7 @@ func (db *DB) InsertUser(firstName, lastName, username, email, hashedPassword st
 	return int(id), err
 }
 
-func (db *DB) GetUserById(id int) (*User, bool, error) {
+func (db *DB) UserById(id int) (*User, bool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
 
@@ -57,7 +96,7 @@ func (db *DB) GetUserById(id int) (*User, bool, error) {
 	return &user, true, err
 }
 
-func (db *DB) GetUserByEmail(email string) (*User, bool, error) {
+func (db *DB) UserByEmail(email string) (*User, bool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
 
@@ -73,7 +112,7 @@ func (db *DB) GetUserByEmail(email string) (*User, bool, error) {
 	return &user, true, err
 }
 
-func (db *DB) GetUserByUsername(username string) (*User, bool, error) {
+func (db *DB) UserByUsername(username string) (*User, bool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
 
@@ -89,7 +128,7 @@ func (db *DB) GetUserByUsername(username string) (*User, bool, error) {
 	return &user, true, err
 }
 
-func (db *DB) GetUserBySession(sessionToken string) (*User, bool, error) {
+func (db *DB) UserBySession(sessionToken string) (*User, bool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
 
@@ -111,8 +150,8 @@ func (db *DB) GetUserBySession(sessionToken string) (*User, bool, error) {
 		return nil, false, err
 	}
 
-	// Use existing GetUser function
-	return db.GetUserById(userID)
+	// Use existing Getuser.User function
+	return db.UserById(userID)
 }
 
 func (db *DB) UpdateUserHashedPassword(id int, hashedPassword string) error {
@@ -125,8 +164,8 @@ func (db *DB) UpdateUserHashedPassword(id int, hashedPassword string) error {
 	return err
 }
 
-// GetTotalUserCountExcludingUser returns the total number of users excluding a specific user
-func (db *DB) GetTotalUserCountExcludingUser(currentUserID int) (int, error) {
+// GetTotaluser.UserCountExcludinguser.User returns the total number of users excluding a specific user
+func (db *DB) TotalUserCountExcludingUser(currentUserID int) (int, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
 
@@ -141,66 +180,36 @@ func (db *DB) GetTotalUserCountExcludingUser(currentUserID int) (int, error) {
 	return count, nil
 }
 
-// UserWithLastMessage represents a user with their last message time
-type UserWithLastMessage struct {
-	ID              int     `db:"id" json:"id"`
-	Username        string  `db:"username" json:"username"`
-	LastMessageTime *string `db:"last_message_time" json:"last_message_time"`
-}
+// TO DO: Instead of this atrocious function, the conversation table can now be used
+// to retrieve rcently messaged users first. Any other users not paired with the context user in the
+// conversation table can then be display independently in whataever order.
 
-// GetPaginatedUsersForList returns paginated users ordered by recent chat activity, then alphabetically
-func (db *DB) GetPaginatedUsersForList(currentUserID int, offset, limit int) ([]UserWithLastMessage, error) {
+// GetPaginateduser.UsersForList returns paginated users ordered by recent chat activity, then alphabetically
+func (db *DB) UserList(currentUserID int) ([]UserWithLastMessageTime, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
 
 	query := `
-		SELECT u.id, u.username, 
+		SELECT u.id, u.f_name, u.l_name 
 			CASE WHEN MAX(m.created_at) IS NOT NULL 
 				THEN datetime(MAX(m.created_at))
 				ELSE NULL 
 			END as last_message_time
 		FROM user u
-		LEFT JOIN message m ON (u.id = m.sender_id OR u.id = m.receiver_id) 
-			AND (m.sender_id = ? OR m.receiver_id = ?)
-		WHERE u.id != ?
+		LEFT JOIN message m ON u.id = (m.sender_id
+			OR m.sender_id = $1)
+		WHERE u.id != $1
 		GROUP BY u.id, u.username
 		ORDER BY 
 			CASE WHEN MAX(m.created_at) IS NOT NULL THEN 0 ELSE 1 END,
 			MAX(m.created_at) DESC,
-			u.username ASC
-		LIMIT ? OFFSET ?`
+			u.username ASC`
 
-	var users []UserWithLastMessage
-	err := db.SelectContext(ctx, &users, query, currentUserID, currentUserID, currentUserID, limit, offset)
+	var users []UserWithLastMessageTime
+	err := db.SelectContext(ctx, &users, query, currentUserID)
 	if err != nil {
 		return nil, err
 	}
 
 	return users, nil
-}
-
-// GetUserMessagePriority returns a single user with their last message time for a specific requesting user
-func (db *DB) GetUserMessagePriority(currentUserID, targetUserID int) (*UserWithLastMessage, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
-	defer cancel()
-
-	query := `
-		SELECT u.id, u.username, 
-			CASE WHEN MAX(m.created_at) IS NOT NULL 
-				THEN datetime(MAX(m.created_at))
-				ELSE NULL 
-			END as last_message_time
-		FROM user u
-		LEFT JOIN message m ON (u.id = m.sender_id OR u.id = m.receiver_id) 
-			AND (m.sender_id = ? OR m.receiver_id = ?)
-		WHERE u.id = ?
-		GROUP BY u.id, u.username`
-
-	var user UserWithLastMessage
-	err := db.GetContext(ctx, &user, query, currentUserID, currentUserID, targetUserID)
-	if err != nil {
-		return nil, err
-	}
-
-	return &user, nil
 }

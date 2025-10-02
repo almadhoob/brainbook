@@ -22,7 +22,7 @@ func SendMessageHandler(event Event, c *Client) error {
 	log.Printf("Unmarshaled message event: %+v", chatevent)
 
 	// CRITICAL: Validate session token against database
-	user, found, err := c.manager.DB.GetUserBySession(chatevent.SessionToken)
+	user, found, err := c.manager.DB.UserBySession(chatevent.SessionToken)
 	if err != nil || !found {
 		c.closeWithReason(websocket.ClosePolicyViolation, "Invalid session token")
 		return nil
@@ -113,7 +113,7 @@ func SendTypingHandler(event Event, c *Client) error {
 	}
 
 	// CRITICAL: Validate session token against database
-	user, found, err := c.manager.DB.GetUserBySession(typingEvent.SessionToken)
+	user, found, err := c.manager.DB.UserBySession(typingEvent.SessionToken)
 	if err != nil || !found {
 		c.closeWithReason(websocket.ClosePolicyViolation, "Invalid session token")
 		return nil

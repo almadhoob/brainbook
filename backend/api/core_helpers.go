@@ -3,6 +3,8 @@ package api
 import (
 	"fmt"
 	"net/http"
+	"strconv"
+	"strings"
 )
 
 func (app *Application) backgroundTask(r *http.Request, fn func() error) {
@@ -23,4 +25,20 @@ func (app *Application) backgroundTask(r *http.Request, fn func() error) {
 			app.reportServerError(r, err)
 		}
 	}()
+}
+
+func parseStringID(stringID string) (int, error) {
+
+	sanitizedID := strings.TrimSpace(stringID)
+
+	if sanitizedID == "" {
+		return 0, fmt.Errorf("ID is required")
+	}
+
+	ID, err := strconv.Atoi(sanitizedID)
+	if err != nil {
+		return 0, fmt.Errorf("Invalid ID: %s", sanitizedID)
+	}
+
+	return ID, nil
 }

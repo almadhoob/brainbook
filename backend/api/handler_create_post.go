@@ -12,9 +12,9 @@ import (
 func (app *Application) createPost(w http.ResponseWriter, r *http.Request) {
 	// Define the input structure to decode JSON
 	var input struct {
-		Content    string              `json:"content"`
-		Categories []int               `json:"categories"`
-		Validator  validator.Validator `json:"-"`
+		Content   string              `json:"content"`
+		File      []byte              `json:"file"`
+		Validator validator.Validator `json:"-"`
 	}
 
 	// Decode the JSON request body
@@ -26,16 +26,9 @@ func (app *Application) createPost(w http.ResponseWriter, r *http.Request) {
 
 	// Get the authenticated user from context
 	user := contextGetAuthenticatedUser(r)
-	if user == nil {
-		app.authenticationRequired(w, r)
-		return
-	}
 
 	input.Validator.CheckField(validator.NotBlank(input.Content), "post-content", "Content must not be empty")
 	input.Validator.CheckField(validator.MaxRunes(input.Content, 500), "post-content", "Content must not exceed 500 characters")
-
-	// Validate categories (optional but if provided, must be valid)
-	input.Validator.CheckField(len(input.Categories) <= 10, "categories", "Cannot select more than 10 categories")
 
 	if input.Validator.HasErrors() {
 		app.failedValidation(w, r, input.Validator)
@@ -45,27 +38,19 @@ func (app *Application) createPost(w http.ResponseWriter, r *http.Request) {
 	currentDateTime := t.CurrentTime()
 
 	// Insert the post into the database
-	postID, err := app.DB.InsertPost(input.Content, currentDateTime, user.ID)
+	postID, err := app.DB.InsertPost(user.ID, input.Content, input.File, currentDateTime)
 	if err != nil {
 		app.serverError(w, r, err)
 		return
 	}
 
-	// Insert categories into the database
-	for _, categoryID := range input.Categories {
-		err := app.DB.InsertPostCategory(postID, categoryID)
-		if err != nil {
-			app.serverError(w, r, err)
-			return
-		}
-	}
-
 	// Respond with the created post
 	responseData := map[string]any{
 		"post_id":    postID,
+		"user_full_name":     user.FullName(),
+		"user_avatar":     user.Avatar,
 		"content":    input.Content,
-		"username":   user.Username,
-		"categories": input.Categories,
+		"file:":      input.File,
 		"created_at": currentDateTime,
 	}
 

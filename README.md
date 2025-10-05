@@ -5,9 +5,9 @@ The BrainBook is a basic social network that has the following features: Profile
 ## Software Versions
 
 - Golang v1.25.1
-- NodeJS v22.19.0
-- PNPM v10.17.0
-- Nuxt v4.0.3
+- NodeJS v22.20.0
+- PNPM v10.18.0
+- Nuxt v4.1.2
 
 ## License
 

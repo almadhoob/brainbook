@@ -1,0 +1,1414 @@
+openapi: 3.1.0
+info:
+  title: BrainBook API
+  description: |
+    BrainBook is a social networking platform API that provides functionality for user management, 
+    profiles, posts, comments, messaging, and groups. All endpoints follow RESTful conventions 
+    and return JSON responses.
+    
+    ## Route Prefixes
+    - `/v1/` - Public routes
+    - `/protected/v1/` - Protected routes (requires authenticated user)
+    
+    ## Authentication
+    Authentication is handled via session tokens. After successful login, a session token is 
+    created and should be included in subsequent requests to protected endpoints.
+  version: 1.0.0
+  contact:
+    name: BrainBook API Support
+  license:
+    name: MIT
+
+servers:
+  - url: https://api.brainbook.example.com
+    description: Production server
+  - url: http://localhost:8080
+    description: Development server
+
+tags:
+  - name: Authentication
+    description: User registration, login, and logout operations
+  - name: Profile
+    description: User profile management and information
+  - name: Follow
+    description: Follow/unfollow operations and follower management
+  - name: Posts
+    description: Post creation and retrieval
+  - name: Comments
+    description: Comment creation and management
+  - name: Messaging
+    description: Private messaging and WebSocket communication
+  - name: Groups
+    description: Group management, posts, messages, and events
+  - name: Errors
+    description: Error handling endpoints
+
+paths:
+  /v1/404:
+    get:
+      tags:
+        - Errors
+      summary: 404 Not Found Handler
+      description: Returns a legitimate JSON/HTTP response for routes that don't match
+      operationId: notFound
+      responses:
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/register:
+    post:
+      tags:
+        - Authentication
+      summary: Register a new user
+      description: |
+        Creates a new user account. Avatar images must be encoded to BLOB client-side 
+        and mapped to []bytes server-side.
+      operationId: createUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '204':
+          description: User successfully registered
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /v1/login:
+    post:
+      tags:
+        - Authentication
+      summary: User login
+      description: Authenticates a user and creates a session token
+      operationId: createAuthenticationToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Successfully authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /protected/v1/logout:
+    post:
+      tags:
+        - Authentication
+      summary: User logout
+      description: Logs out the current user and deletes their session
+      operationId: logout
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Successfully logged out
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /protected/v1/profiles/user/{id}:
+    get:
+      tags:
+        - Profile
+      summary: Get user profile
+      description: |
+        Retrieves comprehensive user profile information including follower/following counts 
+        and user posts. If the target user has a private profile and the requester is not 
+        an accepted follower, returns 401 Unauthorized.
+      operationId: getUserProfile
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: User ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: User profile retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileResponse'
+        '400':
+          description: Invalid user ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /protected/v1/user/{id}:
+    patch:
+      tags:
+        - Profile
+      summary: Update profile visibility
+      description: |
+        Updates the profile visibility settings. Only available when the authenticated 
+        user is updating their own profile (is_self is TRUE).
+      operationId: updateProfileVisibility
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: User ID (must match authenticated user)
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileVisibilityRequest'
+      responses:
+        '200':
+          description: Profile visibility updated successfully
+        '400':
+          description: Invalid user ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /protected/v1/user/{id}/followers:
+    get:
+      tags:
+        - Follow
+      summary: Get user followers
+      description: Retrieves a list of users who follow the specified user
+      operationId: getUserFollowers
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: User ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Followers retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FollowersResponse'
+        '400':
+          description: Invalid user ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /protected/v1/user/{id}/following:
+    get:
+      tags:
+        - Follow
+      summary: Get users being followed
+      description: Retrieves a list of users that the specified user is following
+      operationId: getUserFollowing
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: User ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Following list retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FollowingResponse'
+        '400':
+          description: Invalid user ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /protected/v1/user/{id}/follow:
+    post:
+      tags:
+        - Follow
+      summary: Follow a user
+      description: |
+        Creates a follow request. For public profiles, the status is automatically set 
+        to "accepted". For private profiles, the status is set to "pending" and requires 
+        manual approval.
+      operationId: createFollowRequest
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Target user ID to follow
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Follow request created successfully
+        '400':
+          description: Invalid user ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /protected/v1/follow/user/{id}:
+    patch:
+      tags:
+        - Follow
+      summary: Accept/reject follow request or unfollow
+      description: |
+        Updates a follow request status. Can be used to:
+        - Accept a pending follow request
+        - Reject/deny a follow request (status changes to "nonfollower")
+        - Unfollow a user (only possible if already following)
+      operationId: updateFollowRequest
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: User ID associated with the follow request
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateFollowRequestRequest'
+      responses:
+        '200':
+          description: Follow request updated successfully
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /protected/v1/posts:
+    get:
+      tags:
+        - Posts
+      summary: Fetch all posts
+      description: Retrieves all posts for the home feed without sorting or filtering
+      operationId: fetchAllPosts
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Posts retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostsResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /protected/v1/create-post:
+    post:
+      tags:
+        - Posts
+      summary: Create a new post
+      description: |
+        Creates a new post. Posts can include images or GIFs and have privacy settings:
+        - Public: All users can see
+        - Almost Private: Only followers can see
+        - Private: Only selected followers can see
+      operationId: createPost
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePostRequest'
+      responses:
+        '201':
+          description: Post created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Post'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /protected/v1/create-comment:
+    post:
+      tags:
+        - Comments
+      summary: Create a new comment
+      description: Creates a new comment on a post. Comments can include images or GIFs.
+      operationId: createComment
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCommentRequest'
+      responses:
+        '201':
+          description: Comment created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comment'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /protected/ws:
+    get:
+      tags:
+        - Messaging
+      summary: WebSocket connection
+      description: Establishes a WebSocket connection for real-time messaging
+      operationId: serveWebSocket
+      security:
+        - sessionAuth: []
+      responses:
+        '101':
+          description: Switching Protocols - WebSocket connection established
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /protected/v1/private-messages/{id}:
+    get:
+      tags:
+        - Messaging
+      summary: Fetch conversation messages
+      description: Retrieves message history for a specific conversation or user
+      operationId: fetchConversationById
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Conversation ID or User ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Messages retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessagesResponse'
+        '400':
+          description: Invalid ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /protected/v1/user-list:
+    get:
+      tags:
+        - Messaging
+      summary: Fetch all users
+      description: Retrieves a list of all users for messaging purposes
+      operationId: fetchUserList
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: User list retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserListResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /protected/v1/group-list:
+    get:
+      tags:
+        - Groups
+      summary: Fetch group list
+      description: Retrieves a list of all groups
+      operationId: fetchGroupList
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Group list retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupListResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /protected/v1/groups/{id}/messages:
+    get:
+      tags:
+        - Groups
+      summary: Fetch group message history
+      description: Retrieves message history for a specific group
+      operationId: fetchGroupMessages
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Group ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Group messages retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupMessagesResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          description: Group not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    post:
+      tags:
+        - Groups
+      summary: Create group message
+      description: Creates a new message in a group
+      operationId: createGroupMessage
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Group ID
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateGroupMessageRequest'
+      responses:
+        '201':
+          description: Group message created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupMessage'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          description: Group not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /protected/v1/groups/{id}/posts:
+    get:
+      tags:
+        - Groups
+      summary: Fetch group post history
+      description: Retrieves post history for a specific group
+      operationId: fetchGroupPosts
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Group ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Group posts retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupPostsResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          description: Group not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    post:
+      tags:
+        - Groups
+      summary: Create group post
+      description: Creates a new post in a group
+      operationId: createGroupPost
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Group ID
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateGroupPostRequest'
+      responses:
+        '201':
+          description: Group post created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupPost'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          description: Group not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /protected/v1/groups/{id}/events:
+    post:
+      tags:
+        - Groups
+      summary: Create group event
+      description: Creates a new event in a group
+      operationId: createGroupEvent
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Group ID
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateGroupEventRequest'
+      responses:
+        '201':
+          description: Group event created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupEvent'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          description: Group not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /protected/v1/groups/{id}/join:
+    post:
+      tags:
+        - Groups
+      summary: Request to join group
+      description: Creates a request to join a group
+      operationId: createGroupJoinRequest
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Group ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Join request created successfully
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          description: Group not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /protected/v1/groups/{id}/join-requests/{userId}:
+    patch:
+      tags:
+        - Groups
+      summary: Accept/reject group join request
+      description: Owner accepts or rejects a user's request to join the group
+      operationId: updateGroupJoinRequest
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Group ID
+          schema:
+            type: integer
+            format: int64
+        - name: userId
+          in: path
+          required: true
+          description: User ID of the requester
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateJoinRequestRequest'
+      responses:
+        '200':
+          description: Join request updated successfully
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: Only group owner can accept/reject requests
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Group or user not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /protected/v1/groups/{id}/leave:
+    delete:
+      tags:
+        - Groups
+      summary: Leave group
+      description: Removes the authenticated user from the group
+      operationId: leaveGroup
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Group ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successfully left the group
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          description: Group not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  securitySchemes:
+    sessionAuth:
+      type: apiKey
+      in: cookie
+      name: session_token
+      description: Session token obtained after successful login
+
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        Error:
+          type: string
+          description: Error message
+      required:
+        - Error
+
+    ValidationErrorResponse:
+      type: object
+      properties:
+        FieldErrors:
+          type: object
+          additionalProperties:
+            type: string
+          description: Map of field names to validation error messages
+      required:
+        - FieldErrors
+
+    RegisterRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          description: User's email address
+        password:
+          type: string
+          format: password
+          minLength: 8
+          description: User's password
+        f_name:
+          type: string
+          description: First name
+        l_name:
+          type: string
+          description: Last name
+        dob:
+          type: string
+          format: date
+          description: Date of birth (YYYY-MM-DD)
+        avatar:
+          type: string
+          format: byte
+          description: Avatar image encoded as BLOB (optional)
+        nickname:
+          type: string
+          description: Nickname (optional)
+        bio:
+          type: string
+          description: User biography (optional)
+      required:
+        - email
+        - password
+        - f_name
+        - l_name
+        - dob
+
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          description: User's email address
+        password:
+          type: string
+          format: password
+          description: User's password
+      required:
+        - email
+        - password
+
+    LoginResponse:
+      type: object
+      properties:
+        session_token:
+          type: string
+          description: Session token for authenticated requests
+        user_id:
+          type: integer
+          format: int64
+          description: ID of the authenticated user
+
+    UserProfileResponse:
+      type: object
+      properties:
+        user_id:
+          type: integer
+          format: int64
+        f_name:
+          type: string
+        l_name:
+          type: string
+        email:
+          type: string
+          format: email
+        dob:
+          type: string
+          format: date
+        avatar:
+          type: string
+          format: byte
+          description: Avatar image as BLOB
+        nickname:
+          type: string
+        bio:
+          type: string
+        follower_count:
+          type: integer
+          format: int64
+        following_count:
+          type: integer
+          format: int64
+        posts:
+          type: array
+          items:
+            $ref: '#/components/schemas/Post'
+        is_self:
+          type: boolean
+          description: Indicates if the profile belongs to the authenticated user
+      required:
+        - user_id
+        - f_name
+        - l_name
+        - email
+        - dob
+        - follower_count
+        - following_count
+        - posts
+        - is_self
+
+    UpdateProfileVisibilityRequest:
+      type: object
+      properties:
+        is_private:
+          type: boolean
+          nullable: true
+          description: Whether the profile is private
+        visibility:
+          type: string
+          nullable: true
+          enum:
+            - public
+            - private
+          description: Profile visibility setting
+
+    UserBasic:
+      type: object
+      properties:
+        user_id:
+          type: integer
+          format: int64
+        f_name:
+          type: string
+        l_name:
+          type: string
+      required:
+        - user_id
+        - f_name
+        - l_name
+
+    FollowersResponse:
+      type: object
+      properties:
+        followers:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserBasic'
+      required:
+        - followers
+
+    FollowingResponse:
+      type: object
+      properties:
+        following:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserBasic'
+      required:
+        - following
+
+    UpdateFollowRequestRequest:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+            - accepted
+            - nonfollower
+            - unfollow
+          description: New status for the follow request
+      required:
+        - status
+
+    Post:
+      type: object
+      properties:
+        post_id:
+          type: integer
+          format: int64
+        user_id:
+          type: integer
+          format: int64
+        content:
+          type: string
+        image:
+          type: string
+          format: byte
+          description: Image or GIF as BLOB
+        privacy:
+          type: string
+          enum:
+            - public
+            - almost_private
+            - private
+          description: Post privacy setting
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - post_id
+        - user_id
+        - content
+        - privacy
+        - created_at
+
+    PostsResponse:
+      type: object
+      properties:
+        posts:
+          type: array
+          items:
+            $ref: '#/components/schemas/Post'
+      required:
+        - posts
+
+    CreatePostRequest:
+      type: object
+      properties:
+        content:
+          type: string
+          description: Post content
+        image:
+          type: string
+          format: byte
+          description: Image or GIF as BLOB (optional)
+        privacy:
+          type: string
+          enum:
+            - public
+            - almost_private
+            - private
+          description: Post privacy setting
+        selected_followers:
+          type: array
+          items:
+            type: integer
+            format: int64
+          description: Array of follower IDs (required when privacy is "private")
+      required:
+        - content
+        - privacy
+
+    Comment:
+      type: object
+      properties:
+        comment_id:
+          type: integer
+          format: int64
+        post_id:
+          type: integer
+          format: int64
+        user_id:
+          type: integer
+          format: int64
+        content:
+          type: string
+        image:
+          type: string
+          format: byte
+          description: Image or GIF as BLOB
+        created_at:
+          type: string
+          format: date-time
+      required:
+        - comment_id
+        - post_id
+        - user_id
+        - content
+        - created_at
+
+    CreateCommentRequest:
+      type: object
+      properties:
+        post_id:
+          type: integer
+          format: int64
+          description: ID of the post to comment on
+        content:
+          type: string
+          description: Comment content
+        image:
+          type: string
+          format: byte
+          description: Image or GIF as BLOB (optional)
+      required:
+        - post_id
+        - content
+
+    Message:
+      type: object
+      properties:
+        message_id:
+          type: integer
+          format: int64
+        sender_id:
+          type: integer
+          format: int64
+        receiver_id:
+          type: integer
+          format: int64
+        content:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+      required:
+        - message_id
+        - sender_id
+        - receiver_id
+        - content
+        - created_at
+
+    MessagesResponse:
+      type: object
+      properties:
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/Message'
+      required:
+        - messages
+
+    UserListResponse:
+      type: object
+      properties:
+        users:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserBasic'
+      required:
+        - users
+
+    Group:
+      type: object
+      properties:
+        group_id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        description:
+          type: string
+        owner_id:
+          type: integer
+          format: int64
+        created_at:
+          type: string
+          format: date-time
+      required:
+        - group_id
+        - name
+        - owner_id
+        - created_at
+
+    GroupListResponse:
+      type: object
+      properties:
+        groups:
+          type: array
+          items:
+            $ref: '#/components/schemas/Group'
+      required:
+        - groups
+
+    GroupMessage:
+      type: object
+      properties:
+        message_id:
+          type: integer
+          format: int64
+        group_id:
+          type: integer
+          format: int64
+        user_id:
+          type: integer
+          format: int64
+        content:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+      required:
+        - message_id
+        - group_id
+        - user_id
+        - content
+        - created_at
+
+    GroupMessagesResponse:
+      type: object
+      properties:
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/GroupMessage'
+      required:
+        - messages
+
+    CreateGroupMessageRequest:
+      type: object
+      properties:
+        content:
+          type: string
+          description: Message content
+      required:
+        - content
+
+    GroupPost:
+      type: object
+      properties:
+        post_id:
+          type: integer
+          format: int64
+        group_id:
+          type: integer
+          format: int64
+        user_id:
+          type: integer
+          format: int64
+        content:
+          type: string
+        image:
+          type: string
+          format: byte
+          description: Image or GIF as BLOB
+        created_at:
+          type: string
+          format: date-time
+      required:
+        - post_id
+        - group_id
+        - user_id
+        - content
+        - created_at
+
+    GroupPostsResponse:
+      type: object
+      properties:
+        posts:
+          type: array
+          items:
+            $ref: '#/components/schemas/GroupPost'
+      required:
+        - posts
+
+    CreateGroupPostRequest:
+      type: object
+      properties:
+        content:
+          type: string
+          description: Post content
+        image:
+          type: string
+          format: byte
+          description: Image or GIF as BLOB (optional)
+      required:
+        - content
+
+    GroupEvent:
+      type: object
+      properties:
+        event_id:
+          type: integer
+          format: int64
+        group_id:
+          type: integer
+          format: int64
+        creator_id:
+          type: integer
+          format: int64
+        title:
+          type: string
+        description:
+          type: string
+        event_date:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+      required:
+        - event_id
+        - group_id
+        - creator_id
+        - title
+        - event_date
+        - created_at
+
+    CreateGroupEventRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Event title
+        description:
+          type: string
+          description: Event description
+        event_date:
+          type: string
+          format: date-time
+          description: Date and time of the event
+      required:
+        - title
+        - event_date
+
+    UpdateJoinRequestRequest:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+            - accepted
+            - rejected
+          description: Accept or reject the join request
+      required:
+        - status
+
+  responses:
+    UnauthorizedError:
+      description: Authentication required or session expired
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'

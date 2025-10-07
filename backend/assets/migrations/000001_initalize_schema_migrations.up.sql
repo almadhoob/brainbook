@@ -79,10 +79,12 @@ CREATE TABLE IF NOT EXISTS group_join_request (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     group_id INTEGER NOT NULL,
     requester_id INTEGER NOT NULL,
+    target_id INTEGER NOT NULL,
     status CHECK( status IN ('pending','accepted','declined') ) NOT NULL DEFAULT 'pending',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (group_id) REFERENCES group(id),
-    FOREIGN KEY (requester_id) REFERENCES user(id)
+    FOREIGN KEY (requester_id) REFERENCES user(id),
+    FOREIGN KEY (target_id) REFERENCES user(id)
 );
 
 CREATE TABLE IF NOT EXISTS group_post (

@@ -147,16 +147,16 @@ func (db *DB) GetGroupMembers(groupID int) ([]GroupMember, error) {
 	return members, nil
 }
 
-func (db *DB) SendJoinRequest(groupID int, requesterID int) error {
+func (db *DB) SendJoinRequest(groupID int, requesterID int, targetID int) error {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
 
 	query := `
-		INSERT INTO group_join_request (group_id, requester_id, status)
-		VALUES ($1, $2, 'pending')
+		INSERT INTO group_join_request (group_id, requester_id, target_id, status)
+		VALUES ($1, $2, $3, 'pending')
 		WHERE NOT EXISTS (
 			SELECT 1 FROM group_join_request
-			WHERE group_id = $1 AND requester_id = $2 AND status = 'pending'
+			WHERE group_id = $1 AND requester_id = $2 AND target_id = $3 AND status = 'pending'
 		);
 	`
 
@@ -174,6 +174,7 @@ func (db *DB) GetPendingJoinRequests(groupID int) ([]GroupJoinRequest, error) {
 		gjr.id AS request_id,
 		gjr.group_id,
 		gjr.requester_id,
+		gjr.target_id,
 		u.f_name,
 		u.l_name,
 		u.avatar,

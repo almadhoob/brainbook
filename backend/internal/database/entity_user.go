@@ -213,3 +213,34 @@ func (db *DB) UserList(currentUserID int) ([]UserWithLastMessageTime, error) {
 
 	return users, nil
 }
+
+
+func (db *DB) UserFollowerCount(userID int) (int, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+
+	var count int
+	query := `SELECT COUNT(*) FROM follow_request WHERE target_id = $1 AND status = 'accepted'`
+
+	err := db.GetContext(ctx, &count, query, userID)
+	if err != nil {
+		return 0, err
+	}
+
+	return count, nil
+}
+
+func (db *DB) UserFollowingCount(userID int) (int, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+
+	var count int
+	query := `SELECT COUNT(*) FROM follow_request WHERE requester_id = $1 AND status = 'accepted'`
+
+	err := db.GetContext(ctx, &count, query, userID)
+	if err != nil {
+		return 0, err
+	}
+
+	return count, nil
+}

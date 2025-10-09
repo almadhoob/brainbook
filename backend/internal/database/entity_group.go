@@ -82,11 +82,11 @@ func (db *DB) InsertGroup(ownerID int, title string, description string, created
 	return int(groupID), nil
 }
 
-func (db *DB) GetAllGroups() ([]Group, error) {
+func (db *DB) AllGroups() ([]Group, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
 
-	query := `SELECT * FROM group `
+	query := `SELECT * FROM group`
 
 	var groups []Group
 	err := db.SelectContext(ctx, &groups, query)
@@ -97,7 +97,7 @@ func (db *DB) GetAllGroups() ([]Group, error) {
 	return groups, nil
 }
 
-func (db *DB) GetGroupByID(groupID int) (*Group, error) {
+func (db *DB) GroupByID(groupID int) (*Group, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
 
@@ -112,8 +112,27 @@ func (db *DB) GetGroupByID(groupID int) (*Group, error) {
 	return &group, nil
 }
 
+func (db *DB) GroupsByUserID(userID int) ([]Group, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
 
-func (db *DB) AddGroupMember(groupID int, userID int, role string) error {
+	var groups []Group
+
+	query := `SELECT *
+		FROM group g 
+		JOIN group_member as gm ON gm.user_id = $1
+		WHERE gm.group_id = g.id
+		ORDER BY g.title ASC`
+
+	err := db.GetContext(ctx, &groups, query, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	return groups, nil
+}
+
+func (db *DB) InsertGroupMember(groupID int, userID int, role string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
 
@@ -141,13 +160,14 @@ func (db *DB) IsGroupMember(groupID int, userID int) (bool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
 
+	var count int
+
 	query := `
 		SELECT COUNT(*) 
 		FROM group_member 
 		WHERE group_id = $1 AND user_id = $2
 	`
 
-	var count int
 	err := db.GetContext(ctx, &count, query, groupID, userID)
 	if err != nil {
 		return false, err
@@ -156,9 +176,7 @@ func (db *DB) IsGroupMember(groupID int, userID int) (bool, error) {
 	return count > 0, nil
 }
 
-
-
-func (db *DB) GetGroupMembers(groupID int) ([]GroupMember, error) {
+func (db *DB) GroupMembersByGroupID(groupID int) ([]GroupMember, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
 
@@ -172,7 +190,7 @@ func (db *DB) GetGroupMembers(groupID int) ([]GroupMember, error) {
 			gm.joined_at
 		FROM group_member AS gm
 		JOIN user AS u ON gm.user_id = u.id
-		WHERE gm.group_id = $1;
+		WHERE gm.group_id = $1
 	`
 
 	var members []GroupMember
@@ -184,7 +202,7 @@ func (db *DB) GetGroupMembers(groupID int) ([]GroupMember, error) {
 	return members, nil
 }
 
-func (db *DB) SendJoinRequest(groupID int, requesterID int, targetID int) error {
+func (db *DB) InsertJoinRequest(groupID int, requesterID int, targetID int) error {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
 
@@ -194,28 +212,28 @@ func (db *DB) SendJoinRequest(groupID int, requesterID int, targetID int) error 
 		WHERE NOT EXISTS (
 			SELECT 1 FROM group_join_request
 			WHERE group_id = $1 AND requester_id = $2 AND target_id = $3 AND status = 'pending'
-		);
+		)
 	`
 
 	_, err := db.ExecContext(ctx, query, groupID, requesterID)
 	return err
 }
 
-func (db *DB) CancelJoinRequest(groupID int, requesterID int, targetID int) error {
-	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
-	defer cancel()
+// func (db *DB) CancelJoinRequest(groupID int, requesterID int, targetID int) error {
+// 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+// 	defer cancel()
 
-	query := `
-		DELETE FROM group_join_request
-		WHERE group_id = $1 AND requester_id = $2 AND target_id = $3 AND status = 'pending';
-	`
+// 	query := `
+// 		DELETE FROM group_join_request
+// 		WHERE group_id = $1 AND requester_id = $2 AND target_id = $3 AND status = 'pending';
+// 	`
 
-	_, err := db.ExecContext(ctx, query, groupID, requesterID, targetID)
-	return err
-}
+// 	_, err := db.ExecContext(ctx, query, groupID, requesterID, targetID)
+// 	return err
+// }
 
 // GetPendingJoinRequests retrieves all pending join requests for a specific group
-func (db *DB) GetPendingJoinRequests(groupID int) ([]GroupJoinRequest, error) {
+func (db *DB) PendingJoinRequestsByGroupID(groupID int) ([]GroupJoinRequest, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
 
@@ -234,7 +252,7 @@ func (db *DB) GetPendingJoinRequests(groupID int) ([]GroupJoinRequest, error) {
 		JOIN user AS u ON gjr.requester_id = u.id
 		WHERE gjr.group_id = $1
   		AND gjr.status = 'pending'
-		ORDER BY gjr.created_at ASC;`
+		ORDER BY gjr.created_at ASC`
 
 	var requests []GroupJoinRequest
 	err := db.SelectContext(ctx, &requests, query, groupID)
@@ -251,13 +269,12 @@ func (db *DB) UpdateJoinRequestStatus(requestID int, newStatus string) error {
 	query := `
 		UPDATE group_join_request
 		SET status = $1
-		WHERE id = $2;
+		WHERE id = $2
 	`
 
 	_, err := db.ExecContext(ctx, query, newStatus, requestID)
 	return err
 }
-
 
 func (db *DB) InsertGroupEvent(user_id int, title string, description string, eventTime string, groupID int) (int, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
@@ -265,7 +282,7 @@ func (db *DB) InsertGroupEvent(user_id int, title string, description string, ev
 
 	query := `
 	INSERT INTO event (user_id, title, description, time, group_id)
-	VALUES ($1, $2, $3, $4, $5);
+	VALUES ($1, $2, $3, $4, $5)
 	`
 
 	result, err := db.ExecContext(ctx, query, user_id, title, description, eventTime, groupID)
@@ -289,7 +306,7 @@ func (db *DB) GetGroupEvents(groupID int) ([]GroupEvent, error) {
 	SELECT id, user_id, title, description, time, group_id
 	FROM event
 	WHERE group_id = $1
-	ORDER BY time ASC;
+	ORDER BY time ASC
 	`
 
 	var events []GroupEvent
@@ -316,7 +333,7 @@ func (db *DB) GetEventParticipants(eventID int) ([]GroupMember, error) {
 	FROM event_participation AS ep
 	JOIN group_member AS gm ON ep.user_id = gm.user_id
 	JOIN user AS u ON gm.user_id = u.id
-	WHERE ep.event_id = $1;
+	WHERE ep.event_id = $1
 	`
 
 	var participants []GroupMember
@@ -367,7 +384,7 @@ func (db *DB) GetGroupPosts(groupID int) ([]GroupPost, error) {
 	LEFT JOIN comment c ON p.id = c.post_id
 	WHERE p.group_id = $1
 	GROUP BY p.id
-	ORDER BY p.created_at DESC;
+	ORDER BY p.created_at DESC
 	`
 
 	var posts []GroupPost
@@ -404,7 +421,7 @@ func (db *DB) GetGroupPostByID(groupPostID int) (*GroupPost, error) {
 		WHERE gp.id = $1
 		GROUP BY 
 			gp.id, gp.group_id, g.name, gp.user_id, 
-			u.f_name, u.l_name, u.avatar, gp.content, gp.image, gp.created_at;
+			u.f_name, u.l_name, u.avatar, gp.content, gp.image, gp.created_at
 	`
 
 	var groupPost GroupPost
@@ -459,7 +476,7 @@ func (db *DB) GetCommentsForGroupPost(groupPostID int) ([]GroupPostComment, erro
 		FROM group_post_comment AS c
 		JOIN user AS u ON c.user_id = u.id
 		WHERE c.group_post_id = $1
-		ORDER BY c.created_at ASC;
+		ORDER BY c.created_at ASC
 	`
 
 	var comments []GroupPostComment

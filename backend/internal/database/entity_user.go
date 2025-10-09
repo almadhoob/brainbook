@@ -244,3 +244,56 @@ func (db *DB) UserFollowingCount(userID int) (int, error) {
 
 	return count, nil
 }
+
+func (db *DB) IsFollowing(requesterID, targetID int) (bool, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+
+	var count int
+	query := `SELECT COUNT(*) FROM follow_request WHERE requester_id = $1 AND target_id = $2 AND status = 'accepted'`
+
+	err := db.GetContext(ctx, &count, query, requesterID, targetID)
+	if err != nil {
+		return false, err
+	}
+
+	return count > 0, nil
+}
+
+func (db *DB) GetFollowers(userID int) ([]UserSummary, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+
+	var followers []UserSummary
+	query := `
+		SELECT u.id as user_id, u.f_name, u.l_name, u.avatar
+		FROM user u
+		JOIN follow_request fr ON u.id = fr.requester_id
+		WHERE fr.target_id = $1 AND fr.status = 'accepted'`
+
+	err := db.SelectContext(ctx, &followers, query, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	return followers, nil
+}
+
+func (db *DB) GetFollowing(userID int) ([]UserSummary, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+
+	var following []UserSummary
+	query := `
+		SELECT u.id as user_id, u.f_name, u.l_name, u.avatar
+		FROM user u
+		JOIN follow_request fr ON u.id = fr.target_id
+		WHERE fr.requester_id = $1 AND fr.status = 'accepted'`
+
+	err := db.SelectContext(ctx, &following, query, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	return following, nil
+}

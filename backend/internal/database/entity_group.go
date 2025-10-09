@@ -97,6 +97,22 @@ func (db *DB) GetAllGroups() ([]Group, error) {
 	return groups, nil
 }
 
+func (db *DB) GetGroupByID(groupID int) (*Group, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+
+	query := `SELECT * FROM group WHERE id = $1`
+
+	var group Group
+	err := db.GetContext(ctx, &group, query, groupID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &group, nil
+}
+
+
 func (db *DB) AddGroupMember(groupID int, userID int, role string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
@@ -120,6 +136,27 @@ func (db *DB) AddGroupMember(groupID int, userID int, role string) error {
 // 	_, err := db.ExecContext(ctx, query, groupID, userID)
 // 	return err
 // }
+
+func (db *DB) IsGroupMember(groupID int, userID int) (bool, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+
+	query := `
+		SELECT COUNT(*) 
+		FROM group_member 
+		WHERE group_id = $1 AND user_id = $2
+	`
+
+	var count int
+	err := db.GetContext(ctx, &count, query, groupID, userID)
+	if err != nil {
+		return false, err
+	}
+
+	return count > 0, nil
+}
+
+
 
 func (db *DB) GetGroupMembers(groupID int) ([]GroupMember, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
@@ -161,6 +198,19 @@ func (db *DB) SendJoinRequest(groupID int, requesterID int, targetID int) error 
 	`
 
 	_, err := db.ExecContext(ctx, query, groupID, requesterID)
+	return err
+}
+
+func (db *DB) CancelJoinRequest(groupID int, requesterID int, targetID int) error {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+
+	query := `
+		DELETE FROM group_join_request
+		WHERE group_id = $1 AND requester_id = $2 AND target_id = $3 AND status = 'pending';
+	`
+
+	_, err := db.ExecContext(ctx, query, groupID, requesterID, targetID)
 	return err
 }
 

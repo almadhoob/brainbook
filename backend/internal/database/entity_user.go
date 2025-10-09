@@ -154,18 +154,18 @@ func (db *DB) UserBySession(sessionToken string) (*User, bool, error) {
 	return db.UserById(userID)
 }
 
-func (db *DB) UpdateUserHashedPassword(id int, hashedPassword string) error {
+func (db *DB) UpdateUserHashedPassword(userID int, hashedPassword string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
 
 	query := `UPDATE user SET hashed_password = $1 WHERE id = $2`
 
-	_, err := db.ExecContext(ctx, query, hashedPassword, id)
+	_, err := db.ExecContext(ctx, query, hashedPassword, userID)
 	return err
 }
 
 // GetTotaluser.UserCountExcludinguser.User returns the total number of users excluding a specific user
-func (db *DB) TotalUserCountExcludingUser(currentUserID int) (int, error) {
+func (db *DB) TotalUserCountExcludingUserID(currentUserID int) (int, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
 
@@ -184,7 +184,7 @@ func (db *DB) TotalUserCountExcludingUser(currentUserID int) (int, error) {
 // to retrieve rcently messaged users first. Any other users not paired with the context user in the
 // conversation table can then be display independently in whataever order.
 
-// GetPaginateduser.UsersForList returns paginated users ordered by recent chat activity, then alphabetically
+// UsersList returns users ordered by recent chat activity, then alphabetically
 func (db *DB) UserList(currentUserID int) ([]UserWithLastMessageTime, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
@@ -212,4 +212,88 @@ func (db *DB) UserList(currentUserID int) ([]UserWithLastMessageTime, error) {
 	}
 
 	return users, nil
+}
+
+
+func (db *DB) FollowerCountByUserID(userID int) (int, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+
+	var count int
+	query := `SELECT COUNT(*) FROM follow_request WHERE target_id = $1 AND status = 'accepted'`
+
+	err := db.GetContext(ctx, &count, query, userID)
+	if err != nil {
+		return 0, err
+	}
+
+	return count, nil
+}
+
+func (db *DB) FollowingCountByUserID(userID int) (int, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+
+	var count int
+	query := `SELECT COUNT(*) FROM follow_request WHERE requester_id = $1 AND status = 'accepted'`
+
+	err := db.GetContext(ctx, &count, query, userID)
+	if err != nil {
+		return 0, err
+	}
+
+	return count, nil
+}
+
+func (db *DB) IsFollowing(requesterID, targetID int) (bool, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+
+	var count int
+	query := `SELECT COUNT(*) FROM follow_request WHERE requester_id = $1 AND target_id = $2 AND status = 'accepted'`
+
+	err := db.GetContext(ctx, &count, query, requesterID, targetID)
+	if err != nil {
+		return false, err
+	}
+
+	return count > 0, nil
+}
+
+func (db *DB) FollowersByUserID(userID int) ([]UserSummary, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+
+	var followers []UserSummary
+	query := `
+		SELECT u.id as user_id, u.f_name, u.l_name, u.avatar
+		FROM user u
+		JOIN follow_request fr ON u.id = fr.requester_id
+		WHERE fr.target_id = $1 AND fr.status = 'accepted'`
+
+	err := db.SelectContext(ctx, &followers, query, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	return followers, nil
+}
+
+func (db *DB) FollowingByUserID(userID int) ([]UserSummary, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+
+	var following []UserSummary
+	query := `
+		SELECT u.id as user_id, u.f_name, u.l_name, u.avatar
+		FROM user u
+		JOIN follow_request fr ON u.id = fr.target_id
+		WHERE fr.requester_id = $1 AND fr.status = 'accepted'`
+
+	err := db.SelectContext(ctx, &following, query, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	return following, nil
 }

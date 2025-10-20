@@ -3,10 +3,7 @@ export default defineNuxtConfig({
   modules: [
     '@nuxt/eslint',
     '@nuxt/ui',
-    '@vueuse/nuxt',
-    '@nuxt/image',
-    '@nuxt/scripts',
-    '@nuxt/test-utils'
+    '@vueuse/nuxt'
   ],
 
   devtools: {

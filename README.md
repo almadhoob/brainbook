@@ -1,14 +1,13 @@
 <div align="center">
   <img src="logo.png" alt="BrainBook Logo" width="180"/>
   <br />
-  <br />
 
-# BrainBook 🧠
+# BrainBook 📖
 
 **A Social Network for Knowledge Sharing**
 
-[![Go Version](https://img.shields.io/badge/Go-1.25.1-00ADD8?logo=go)](https://golang.org/)
-[![Nuxt](https://img.shields.io/badge/Nuxt-4.1.2-00DC82?logo=nuxt.js)](https://nuxt.com/)
+[![Go Version](https://img.shields.io/badge/Go-1.25-00ADD8?logo=go)](https://golang.org/)
+[![Nuxt](https://img.shields.io/badge/Nuxt-4.1-00DC82?logo=nuxt.js)](https://nuxt.com/)
 
 </div>
 
@@ -148,9 +147,9 @@ Comprehensive notification system for important events:
 
 ### Frontend
 
-- **Framework**: Nuxt 4.1.2 (Vue.js 3)
+- **Framework**: Nuxt 4.1.3 (Vue.js v3)
 - **UI Library**: Nuxt UI Pro
-- **Package Manager**: PNPM 10.18.0
+- **Package Manager**: PNPM 10.18.3
 - **Node.js**: 22.20.0
 - **Styling**: TailwindCSS (via Nuxt UI)
 - **Utilities**: VueUse, date-fns
@@ -209,9 +208,9 @@ As per project requirements, only the following external Go packages are used:
 
 Ensure you have the following installed:
 
-- Go 1.25.1 or higher
-- Node.js 22.20.0 or higher
-- PNPM 10.18.0 or higher
+- Go 1.25 or higher
+- Node.js 22.20 or higher
+- PNPM 10.18 or higher
 
 ### Installation
 
@@ -229,7 +228,6 @@ Ensure you have the following installed:
    go mod download
    
    # Run database migrations (automatic on first run)
-   # The database will be created at backend/db.sqlite
    
    # Start the backend server
    go run main.go

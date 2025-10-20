@@ -54,6 +54,10 @@ func (app *Application) methodNotAllowed(w http.ResponseWriter, r *http.Request)
 func (app *Application) badRequest(w http.ResponseWriter, r *http.Request, err error) {
 	app.errorMessage(w, r, http.StatusBadRequest, err.Error(), nil)
 }
+func (app *Application) Unauthorized(w http.ResponseWriter, r *http.Request) {
+	message := "You are not authorized to access this resource"
+	app.errorMessage(w, r, http.StatusUnauthorized, message, nil)
+}
 
 func (app *Application) Conflict(w http.ResponseWriter, r *http.Request) {
 	message := "Already authenticated"

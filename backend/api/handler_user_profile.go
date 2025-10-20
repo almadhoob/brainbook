@@ -24,9 +24,11 @@ func (app *Application) getUserProfile(w http.ResponseWriter, r *http.Request) {
 	isUserIDMatching := contextUser.IsUserIDMatching(targetUserID)
 
 	var profileUser *database.User
+	var posts []database.Post
+	var pendingFollowRequestsCount int
 
 	if isUserIDMatching {
-		// Checks if the target user exists.
+		// Target user exists
 		targetUser, exists, err := app.DB.UserById(targetUserID)
 		if err != nil {
 			app.serverError(w, r, err)
@@ -36,9 +38,25 @@ func (app *Application) getUserProfile(w http.ResponseWriter, r *http.Request) {
 			app.notFound(w, r)
 			return
 		}
+
 		profileUser = targetUser
+
 	} else {
+		// Viewer is the same as target user
 		profileUser = contextUser
+		targetUserID = contextUser.ID
+
+	pendingFollowRequestsCount, err = app.DB.PendingFollowRequestsCount(targetUserID)
+	if err != nil {
+		app.serverError(w, r, err)
+		return
+	}
+	}
+// Retrieve posts visible to the context user from the target user including self
+	posts, err = app.DB.PostsVisibleFromUser(contextUser.ID, targetUserID)
+	if err != nil {
+		app.serverError(w, r, err)
+		return
 	}
 
 	/* If profile is private, check if context user if a follower (accepted in follow_request table).
@@ -46,32 +64,29 @@ func (app *Application) getUserProfile(w http.ResponseWriter, r *http.Request) {
 	   github.com/0xdod/go-realworld/blob/master/conduit/user.go#L39*/
 
 	// TO DO: Create the two functions below. Kindly do not use AI as it is not needed!
-	followerCount, err := app.DB.UserFollowerCount(targetUserID)
+	followerCount, err := app.DB.FollowerCountByUserID(targetUserID)
 	if err != nil {
 		app.serverError(w, r, err)
 		return
 	}
 
-	followingCount, err := app.DB.UserFollowingCount(targetUserID)
+	followingCount, err := app.DB.FollowingCountByUserID(targetUserID)
 	if err != nil {
 		app.serverError(w, r, err)
 		return
 	}
 
-	posts, err := app.DB.PostsByUserID(targetUserID)
-	if err != nil {
-		app.serverError(w, r, err)
-		return
-	}
+	
 
 	userProfileResponse := map[string]any{
-		"user_id":         profileUser.ID,
-		"full_name":       profileUser.FullName(),
-		"email":           profileUser.Email,
-		"dob":             profileUser.DOB,
-		"follower_count":  followerCount,
-		"following_count": followingCount,
-		"posts":           posts,
+		"user_id":                       profileUser.ID,
+		"full_name":                     profileUser.FullName(),
+		"email":                         profileUser.Email,
+		"dob":                           profileUser.DOB,
+		"follower_count":                followerCount,
+		"following_count":               followingCount,
+		"posts":                         posts,
+		"pending_follow_requests_count": pendingFollowRequestsCount,
 		/*Used in the frontend to determine when
 		  to display the follow/unfollow button*/
 		"is_self": isUserIDMatching,

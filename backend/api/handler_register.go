@@ -51,7 +51,13 @@ func (app *Application) createUser(w http.ResponseWriter, r *http.Request) {
 	input.Validator.CheckField(validator.MaxRunes(input.LName, 50), "last-name", "Last name limit exceeded (50 characters)")
 
 	// Nickname validation
-	input.Validator.CheckField(validator.MaxRunes(input.Nickname, 30), "username", "Username limit exceeded (30 characters)")
+	input.Validator.CheckField(validator.MaxRunes(input.Nickname, 30), "nickname", "Nickname limit exceeded (30 characters)")
+
+	//Bio validation
+	input.Validator.CheckField(validator.MaxRunes(input.Bio, 500), "bio", "Bio limit exceeded (500 characters)")
+
+	//Avatar validation
+	input.Validator.CheckField(len(input.Avatar) <= 5_000_000, "avatar", "Avatar size limit exceeded (5MB)")
 
 	// Email validation
 	input.Validator.CheckField(validator.NotBlank(input.Email), "email", "Email is required")
@@ -65,12 +71,7 @@ func (app *Application) createUser(w http.ResponseWriter, r *http.Request) {
 	input.Validator.CheckField(validator.NotIn(input.Password, security.CommonPasswords...), "password", "Password is too common")
 
 	// DOB validation
-	// input.Validator.CheckField(validator.NotBlank(input.DOB), "age", "Age is required")
-
-	// TODO: Calculate the user's age based on their DOB
-
-	// input.Validator.CheckField(validator.MinInt(age, 13), "age", "You must be 13 or older to register")
-	// input.Validator.CheckField(validator.MaxInt(age, 120), "age", "Dead men tell no tales...")
+	input.Validator.CheckField(validator.ValidDOB(input.DOB, 13, 120), "age", "Age must be between 13 and 120.")
 
 	if input.Validator.HasErrors() {
 		app.failedValidation(w, r, input.Validator)

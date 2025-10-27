@@ -13,7 +13,7 @@ func (app *Application) createComment(w http.ResponseWriter, r *http.Request) {
 	var input struct {
 		PostID    int                 `json:"post_id"`
 		Content   string              `json:"content"`
-		Image     []byte              `json:"image"`
+		File     []byte              `json:"file"`
 		Validator validator.Validator `json:"-"`
 	}
 
@@ -38,7 +38,7 @@ func (app *Application) createComment(w http.ResponseWriter, r *http.Request) {
 	currentDateTime := time.CurrentTime()
 
 	// Insert the comment into the database
-	commentID, err := app.DB.InsertComment(input.PostID, user.ID, input.Content, input.Image, currentDateTime)
+	commentID, err := app.DB.InsertComment(input.PostID, user.ID, input.Content, input.File, currentDateTime)
 	if err != nil {
 		app.serverError(w, r, err)
 		return
@@ -49,7 +49,7 @@ func (app *Application) createComment(w http.ResponseWriter, r *http.Request) {
 		"user_full_name": user.FullName(),
 		"user_avatar":    user.Avatar,
 		"content":        input.Content,
-		"image":          input.Image,
+		"file":          input.File,
 		"created_at":     currentDateTime,
 	}
 

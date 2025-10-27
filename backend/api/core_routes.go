@@ -24,9 +24,11 @@ func (app *Application) routes() http.Handler {
 		GetMethod("/protected/v1/private-messages/user/{id}", app.getConversation).
 		GetMethod("/protected/v1/posts", app.getPosts).
 		GetMethod("/protected/v1/comments", app.getPostComments).
+		GetMethod("/protected/v1/groups/{group_id}/members", app.getMembers).
 		PostMethod("/protected/v1/posts", app.createPost).
 		PostMethod("/protected/v1/comments", app.createComment).
-		PostMethod("/protected/v1/logout", app.logout)
+		PostMethod("/protected/v1/logout", app.logout).
+		PostMethod("/protected/v1/profile/update", app.updateProfile)
 
 	publicMux, guestMux, protectedMux := registry.GetMuxes()
 

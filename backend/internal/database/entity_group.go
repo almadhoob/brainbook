@@ -2,6 +2,8 @@ package database
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"time"
 )
 
@@ -16,7 +18,7 @@ type Group struct {
 type GroupMember struct {
 	Role     string `db:"role" json:"role"`
 	JoinedAt string `db:"joined_at" json:"joined_at"`
-	
+
 	UserSummary
 }
 
@@ -49,7 +51,7 @@ type GroupPost struct {
 	CommentCount int       `db:"comment_count" json:"comment_count"`
 	Comments     []Comment `json:"comments"`
 
-    UserSummary
+	UserSummary
 }
 
 type GroupPostComment struct {
@@ -61,15 +63,14 @@ type GroupPostComment struct {
 	UserSummary
 }
 
-
-func (db *DB) InsertGroup(ownerID int, title string, description string, createdAt string) (int, error) {
+func (db *DB) InsertGroup(ownerID int, title string, description string) (int, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
 	query := `
 		INSERT INTO group (owner_id, title, description, created_at)
 		VALUES ($1, $2, $3, $4)
 	`
-	result, err := db.ExecContext(ctx, query, ownerID, title, description, createdAt)
+	result, err := db.ExecContext(ctx, query, ownerID, title, description, time.Now())
 	if err != nil {
 		return 0, err
 	}
@@ -217,6 +218,27 @@ func (db *DB) InsertJoinRequest(groupID int, requesterID int, targetID int) erro
 
 	_, err := db.ExecContext(ctx, query, groupID, requesterID)
 	return err
+}
+
+func (db *DB) RequestExistsAndPending(groupID int, requesterID int, targetID int) (bool, bool, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+
+	var status string
+	query := `
+        SELECT status
+        FROM group_join_request
+        WHERE group_id = $1 AND requester_id = $2 AND target_id = $3
+        LIMIT 1
+    `
+	err := db.GetContext(ctx, &status, query, groupID, requesterID, targetID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, false, nil
+	}
+	if err != nil {
+		return false, false, err
+	}
+	return true, status == "pending", nil
 }
 
 // func (db *DB) CancelJoinRequest(groupID int, requesterID int, targetID int) error {
@@ -369,7 +391,7 @@ func (db *DB) InsertGroupPost(content string, image []byte, currentDateTime stri
 	return int(postID), nil
 }
 
-//retrieve posts for a specific group along with user details and comment count
+// retrieve posts for a specific group along with user details and comment count
 func (db *DB) GetGroupPosts(groupID int) ([]GroupPost, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
@@ -395,7 +417,6 @@ func (db *DB) GetGroupPosts(groupID int) ([]GroupPost, error) {
 
 	return posts, nil
 }
-
 
 func (db *DB) GetGroupPostByID(groupPostID int) (*GroupPost, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
@@ -433,8 +454,6 @@ func (db *DB) GetGroupPostByID(groupPostID int) (*GroupPost, error) {
 	return &groupPost, nil
 }
 
-
-
 func (db *DB) InsertGroupPostComment(content string, image []byte, currentDateTime string, groupPostID int, userID int) (int, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
@@ -456,7 +475,6 @@ func (db *DB) InsertGroupPostComment(content string, image []byte, currentDateTi
 
 	return int(commentID), nil
 }
-
 
 func (db *DB) GetCommentsForGroupPost(groupPostID int) ([]GroupPostComment, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)

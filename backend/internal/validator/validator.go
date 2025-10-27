@@ -1,5 +1,7 @@
 package validator
 
+import "time"
+
 type Validator struct {
 	Errors      []string          `json:",omitempty"`
 	FieldErrors map[string]string `json:",omitempty"`
@@ -37,4 +39,28 @@ func (v *Validator) CheckField(ok bool, key, message string) {
 	if !ok {
 		v.AddFieldError(key, message)
 	}
+}
+
+func AgeFromDOB(dob, ref time.Time) int {
+	if dob.IsZero() || !dob.Before(ref) {
+		return 0
+	}
+	age := ref.Year() - dob.Year()
+	if ref.Month() < dob.Month() || (ref.Month() == dob.Month() && ref.Day() < dob.Day()) {
+		age--
+	}
+	return age
+}
+
+// ValidDOB checks presence, not-in-future, and age range [minYears, maxYears].
+func ValidDOB(dob time.Time, minYears, maxYears int) bool {
+	if dob.IsZero() {
+		return false
+	}
+	now := time.Now()
+	if !dob.Before(now) {
+		return false
+	}
+	age := AgeFromDOB(dob, now)
+	return age >= minYears && age <= maxYears
 }

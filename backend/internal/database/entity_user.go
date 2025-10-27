@@ -20,6 +20,7 @@ type User struct {
 	Avatar         []byte    `db:"avatar" json:"avatar"`
 	Nickname       string    `db:"nickname" json:"nickname"`
 	Bio            string    `db:"bio" json:"bio"`
+	IsPublic       bool      `db:"is_public" json:"is_public"`
 }
 
 func (u *User) FullName() string {
@@ -39,11 +40,9 @@ func (u *UserSummary) FullName() string {
 
 // UserWithLastMessage represents a user with their last message time
 type UserWithLastMessageTime struct {
-	ID              int     `db:"id" json:"id"`
-	Avatar          []byte  `db:"avatar" json:"avatar"`
-	FName           string  `db:"f_name" json:"f_name"`
-	LName           string  `db:"l_name" json:"l_name"`
 	LastMessageTime *string `db:"last_message_time" json:"last_message_time"`
+
+	UserSummary
 }
 
 type UserPatch struct {
@@ -164,20 +163,76 @@ func (db *DB) UpdateUserHashedPassword(userID int, hashedPassword string) error 
 	return err
 }
 
-// GetTotaluser.UserCountExcludinguser.User returns the total number of users excluding a specific user
-func (db *DB) TotalUserCountExcludingUserID(currentUserID int) (int, error) {
+func (db *DB) UpdateBio(userID int, bio string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+
+	query := `UPDATE user SET bio = $1 WHERE id = $2`
+
+	_, err := db.ExecContext(ctx, query, bio, userID)
+	return err
+}
+
+func (db *DB) UpdateNickname(userID int, nickname string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+
+	query := `UPDATE user SET nickname = $1 WHERE id = $2`
+
+	_, err := db.ExecContext(ctx, query, nickname, userID)
+	return err
+}
+
+func (db *DB) UpdateAvatar(userID int, avatar []byte) error {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+
+	query := `UPDATE user SET avatar = $1 WHERE id = $2`
+
+	_, err := db.ExecContext(ctx, query, avatar, userID)
+	return err
+}
+
+func (db *DB) UpdatePrivacy(userID int, isPrivate bool) error {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+
+	query := `UPDATE user SET is_private = $1 WHERE id = $2`
+
+	_, err := db.ExecContext(ctx, query, isPrivate, userID)
+	return err
+}
+
+func (db *DB) PendingFollowRequestsCount(userID int) (int, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
 
 	var count int
-	query := `SELECT COUNT(*) FROM user WHERE id != ?`
+	query := `SELECT COUNT(*) FROM follow_request WHERE target_id = $1 AND status = 'pending'`
 
-	err := db.GetContext(ctx, &count, query, currentUserID)
+	err := db.GetContext(ctx, &count, query, userID)
 	if err != nil {
 		return 0, err
 	}
 
 	return count, nil
+}
+
+
+// GetTotaluser.UserCountExcludinguser.User returns the total number of users excluding a specific user
+func (db *DB) TotalUserCount() (int, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+
+	var count int
+	query := `SELECT COUNT(*) FROM user`
+
+	err := db.GetContext(ctx, &count, query)
+	if err != nil {
+		return 0, err
+	}
+
+	return count - 1, nil
 }
 
 // TO DO: Instead of this atrocious function, the conversation table can now be used

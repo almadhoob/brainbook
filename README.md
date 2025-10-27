@@ -6,8 +6,8 @@
 
 **A Social Network for Knowledge Sharing**
 
-[![Go Version](https://img.shields.io/badge/Go-1.25-00ADD8?logo=go)](https://golang.org/)
-[![Nuxt](https://img.shields.io/badge/Nuxt-4.1-00DC82?logo=nuxt.js)](https://nuxt.com/)
+[![Golang](https://img.shields.io/badge/Go-1.25-00ADD8?logo=go)](https://golang.org/)
+[![Nuxt](https://img.shields.io/badge/Nuxt-4.2-00DC82?logo=nuxt.js)](https://nuxt.com/)
 
 </div>
 
@@ -134,25 +134,24 @@ Comprehensive notification system for important events:
 
 ## 🛠️ Technology Stack
 
-### Backend
-
-- **Language**: Go 1.25.1
-- **Web Framework**: Go standard library
-- **Database**: SQLite 3
-- **Real-time**: gorilla/websocket
-- **Security**: 
-  - golang.org/x/crypto/bcrypt (password hashing)
-  - google/uuid (session tokens)
-- **Migrations**: golang-migrate/migrate
-
 ### Frontend
 
-- **Framework**: Nuxt 4.1.3 (Vue.js v3)
+- **Node.js**: 22.21.0
+- **Package Manager**: PNPM 10.19.0
+- **Framework**: Nuxt 4.2.0 (Vue.js v3)
 - **UI Library**: Nuxt UI Pro
-- **Package Manager**: PNPM 10.18.3
-- **Node.js**: 22.20.0
 - **Styling**: TailwindCSS (via Nuxt UI)
 - **Utilities**: VueUse, date-fns
+
+### Backend
+
+- **Language**: Go 1.25
+- **Database**: SQLite 3
+- **Migrations**: golang-migrate/migrate
+- **Security**:
+  - golang.org/x/crypto/bcrypt (password hashing)
+  - google/uuid (session tokens)
+- **Real-time**: gorilla/websocket
 
 ### Allowed Go Dependencies
 
@@ -223,14 +222,12 @@ Ensure you have the following installed:
 2. **Backend Setup**
    ```bash
    cd backend
-   
+
    # Install dependencies
    go mod download
-   
-   # Run database migrations (automatic on first run)
-   
+
    # Start the backend server
-   go run main.go
+   go run .
    ```
 
    The backend server will start on `http://localhost:8080`
@@ -238,10 +235,10 @@ Ensure you have the following installed:
 3. **Frontend Setup**
    ```bash
    cd frontend
-   
+
    # Install dependencies
    pnpm install
-   
+
    # Start the development server
    pnpm dev
    ```
@@ -379,7 +376,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 <div align="center">
-  
+
 **[⬆ Back to Top](#brainbook-)**
 
 Made with 🧠 by the BrainBook Team

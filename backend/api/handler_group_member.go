@@ -53,9 +53,8 @@ func (app *Application) getMembers(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-//handels joining a group
+// used by user to request to join a group
 func (app *Application) joinGroupRequest(w http.ResponseWriter, r *http.Request) {
-
 
 	ctx := contextGetAuthenticatedUser(r)
 	userID := ctx.ID
@@ -80,55 +79,48 @@ func (app *Application) joinGroupRequest(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	    if ismember {
-        _ = response.JSON(w, http.StatusOK, map[string]any{"status": "member"})
-        return
-    }
+	if ismember {
+		_ = response.JSON(w, http.StatusOK, map[string]any{"status": "member"})
+		return
+	}
 
-    exists, pending, err := app.DB.RequestExistsAndPending(groupID, userID, group.OwnerID)
-    if err != nil {
-        app.serverError(w, r, err)
-        return
-    }
+	exists, pending, err := app.DB.RequestExistsAndPending(groupID, userID, group.OwnerID)
+	if err != nil {
+		app.serverError(w, r, err)
+		return
+	}
 
-    // If request already pending, return status JSON
-    if exists && pending {
-        _ = response.JSON(w, http.StatusOK, map[string]any{"status": "pending"})
-        return
-    }
+	// If request already pending, return status JSON
+	if exists && pending {
+		_ = response.JSON(w, http.StatusOK, map[string]any{"status": "pending"})
+		return
+	}
 
-    // Create a new request and return pending status
-    err = app.DB.InsertJoinRequest(groupID, userID, group.OwnerID)
-    if err != nil {
-        app.serverError(w, r, err)
-        return
-    }
+	// Create a new request and return pending status
+	err = app.DB.InsertJoinRequest(groupID, userID, group.OwnerID)
+	if err != nil {
+		app.serverError(w, r, err)
+		return
+	}
 
-    _ = response.JSON(w, http.StatusCreated, map[string]any{"status": "pending"})
+	_ = response.JSON(w, http.StatusCreated, map[string]any{"status": "pending"})
 }
 
+// used by group owner to invite users to join group
 func (app *Application) SendGroupInvite(w http.ResponseWriter, r *http.Request) {
 
 	var input struct {
-		targetUserID int                 `json:"target_user_id"`
+		TargetUserID int                 `json:"target_user_id"`
 		Validator    validator.Validator `json:"-"`
 	}
-		err := request.DecodeJSON(w, r, &input)
+	err := request.DecodeJSON(w, r, &input)
 	if err != nil {
 		app.badRequest(w, r, err)
 		return
 	}
-
+	//requester
 	ctx := contextGetAuthenticatedUser(r)
 	userID := ctx.ID
-
-	_, err = app.DB.IsGroupMember(userID, input.targetUserID)
-	if err != nil {
-		app.badRequest(w, r, err)
-		return
-	}
-
-
 
 	groupIDStr := r.PathValue("group_id")
 	groupID, err := parseStringID(groupIDStr)
@@ -138,11 +130,26 @@ func (app *Application) SendGroupInvite(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Check if group exists
-	_ , err = app.DB.GroupByID(groupID)
+	group, err := app.DB.GroupByID(groupID)
 	if err != nil {
 		app.notFound(w, r)
 		return
 	}
+	_, err = app.DB.IsGroupMember(groupID, input.TargetUserID)
+	if err != nil {
+		app.badRequest(w, r, err)
+		return
+	}
+	if group.OwnerID != userID {
+		app.Unauthorized(w, r)
+		return
+	}
 
+	err = app.DB.InsertJoinRequest(groupID, userID, input.TargetUserID)
+	if err != nil {
+		app.serverError(w, r, err)
+		return
+	}
 
+	_ = response.JSON(w, http.StatusCreated, map[string]any{"status": "invite sent"})
 }

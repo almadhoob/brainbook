@@ -25,10 +25,20 @@ func (app *Application) routes() http.Handler {
 		GetMethod("/protected/v1/posts", app.getPosts).
 		GetMethod("/protected/v1/comments", app.getPostComments).
 		GetMethod("/protected/v1/groups/{group_id}/members", app.getMembers).
+		GetMethod("/protected/v1/groups", app.getGroups).
+		GetMethod("/protected/v1/user/groups", app.userGroups).
+		GetMethod("/protected/v1/groups/{group_id}", app.groupDetails).
+		GetMethod("/protected/v1/groups/{group_id}/posts", app.groupPosts).
 		PostMethod("/protected/v1/posts", app.createPost).
 		PostMethod("/protected/v1/comments", app.createComment).
 		PostMethod("/protected/v1/logout", app.logout).
-		PostMethod("/protected/v1/profile/update", app.updateProfile)
+		PostMethod("/protected/v1/profile/update", app.updateProfile).
+		PostMethod("/protected/v1/groups/{group_id}/create", app.groupPostCreate).
+		PostMethod("/protected/v1/groups/{group_id}/join", app.joinGroupRequest).
+		PostMethod("/protected/v1/groups/{group_id}/send", app.SendGroupInvite)
+
+
+
 
 	publicMux, guestMux, protectedMux := registry.GetMuxes()
 

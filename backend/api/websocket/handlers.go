@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/gorilla/websocket"
 	"brainbook-api/internal/response"
 	t "brainbook-api/internal/time"
 	"brainbook-api/internal/validator"
+	"github.com/gorilla/websocket"
 )
 
 // SendMessageHandler will send out a message to all other participants in the chat
@@ -57,6 +57,17 @@ func SendMessageHandler(event Event, c *Client) error {
 		return nil
 	}
 
+	canMessage, err := c.manager.DB.CanUsersMessage(user.ID, chatevent.ReceiverID)
+	if err != nil {
+		return fmt.Errorf("failed to verify messaging permission: %v", err)
+	}
+	if !canMessage {
+		c.sendErrorEventWithContext("MESSAGE_NOT_ALLOWED", "You cannot send messages to this user", map[string]interface{}{
+			"receiver_id": chatevent.ReceiverID,
+		})
+		return nil
+	}
+
 	// Check if receiver is online
 	log.Printf("Looking for receiver client with ID: %d", chatevent.ReceiverID)
 	receiverClient := c.manager.getClientByUserID(chatevent.ReceiverID)
@@ -72,11 +83,28 @@ func SendMessageHandler(event Event, c *Client) error {
 	// Generate single timestamp for consistency between database and client
 	currentDateTime := t.CurrentTime()
 
+	conversation, exists, err := c.manager.DB.ConversationByUserIDs(user.ID, chatevent.ReceiverID)
+	if err != nil {
+		return fmt.Errorf("failed to fetch conversation: %v", err)
+	}
+
+	var conversationID int
+	if exists {
+		conversationID = conversation.ID
+	} else {
+		conversationID, err = c.manager.DB.InsertConversation(user.ID, chatevent.ReceiverID, currentDateTime, currentDateTime)
+		if err != nil {
+			return fmt.Errorf("failed to create conversation: %v", err)
+		}
+	}
+
 	// Save message to database
-	_, err = c.manager.DB.InsertMessage(user.ID, chatevent.Message, currentDateTime)
+	_, err = c.manager.DB.InsertMessage(conversationID, user.ID, chatevent.Message, currentDateTime)
 	if err != nil {
 		return fmt.Errorf("failed to save message: %v", err)
 	}
+
+	_ = c.manager.DB.UpdateConversationLastMessageTime(conversationID, currentDateTime)
 
 	// Prepare outgoing message
 	var broadMessage ReceiveMessageEvent

@@ -1,10 +1,12 @@
 package api
 
 import (
+	"fmt"
+	"net/http"
+
 	"brainbook-api/internal/request"
 	"brainbook-api/internal/response"
 	"brainbook-api/internal/validator"
-	"net/http"
 )
 
 func (app *Application) getMembers(w http.ResponseWriter, r *http.Request) {
@@ -84,6 +86,11 @@ func (app *Application) joinGroupRequest(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	if group.OwnerID == userID {
+		_ = response.JSON(w, http.StatusOK, map[string]any{"status": "owner"})
+		return
+	}
+
 	exists, pending, err := app.DB.RequestExistsAndPending(groupID, userID, group.OwnerID)
 	if err != nil {
 		app.serverError(w, r, err)
@@ -93,6 +100,20 @@ func (app *Application) joinGroupRequest(w http.ResponseWriter, r *http.Request)
 	// If request already pending, return status JSON
 	if exists && pending {
 		_ = response.JSON(w, http.StatusOK, map[string]any{"status": "pending"})
+		return
+	}
+
+	existsOpp, pendingOpp, err := app.DB.RequestExistsAndPending(groupID, group.OwnerID, userID)
+	if err != nil {
+		app.serverError(w, r, err)
+		return
+	}
+	if existsOpp {
+		status := "pending"
+		if !pendingOpp {
+			status = "processed"
+		}
+		_ = response.JSON(w, http.StatusOK, map[string]any{"status": status})
 		return
 	}
 
@@ -118,6 +139,13 @@ func (app *Application) SendGroupInvite(w http.ResponseWriter, r *http.Request) 
 		app.badRequest(w, r, err)
 		return
 	}
+
+	input.Validator.CheckField(input.TargetUserID > 0, "target_user_id", "Target user is required")
+	if input.Validator.HasErrors() {
+		app.failedValidation(w, r, input.Validator)
+		return
+	}
+
 	//requester
 	ctx := contextGetAuthenticatedUser(r)
 	userID := ctx.ID
@@ -135,13 +163,46 @@ func (app *Application) SendGroupInvite(w http.ResponseWriter, r *http.Request) 
 		app.notFound(w, r)
 		return
 	}
-	_, err = app.DB.IsGroupMember(groupID, input.TargetUserID)
+	if input.TargetUserID == userID {
+		app.badRequest(w, r, fmt.Errorf("cannot invite yourself"))
+		return
+	}
+
+	_, found, err := app.DB.UserById(input.TargetUserID)
 	if err != nil {
-		app.badRequest(w, r, err)
+		app.serverError(w, r, err)
+		return
+	}
+	if !found {
+		app.notFound(w, r)
+		return
+	}
+
+	isTargetMember, err := app.DB.IsGroupMember(groupID, input.TargetUserID)
+	if err != nil {
+		app.serverError(w, r, err)
+		return
+	}
+	if isTargetMember {
+		_ = response.JSON(w, http.StatusOK, map[string]any{"status": "member"})
 		return
 	}
 	if group.OwnerID != userID {
 		app.Unauthorized(w, r)
+		return
+	}
+
+	exists, pending, err := app.DB.RequestExistsAndPending(groupID, userID, input.TargetUserID)
+	if err != nil {
+		app.serverError(w, r, err)
+		return
+	}
+	if exists {
+		status := "pending"
+		if !pending {
+			status = "processed"
+		}
+		_ = response.JSON(w, http.StatusOK, map[string]any{"status": status})
 		return
 	}
 

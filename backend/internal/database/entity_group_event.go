@@ -73,7 +73,7 @@ func (db *DB) GetEventParticipants(eventID int) ([]GroupMember, error) {
 FROM event_has_user AS ehu
 JOIN user AS u
     ON ehu.user_id = u.id
-LEFT JOIN group_member AS gm
+LEFT JOIN group_members AS gm
     ON gm.user_id = u.id
    AND gm.group_id = (SELECT group_id FROM event WHERE id = $1)
 WHERE ehu.event_id = $1;

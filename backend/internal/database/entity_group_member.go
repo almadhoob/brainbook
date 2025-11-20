@@ -14,7 +14,7 @@ func (db *DB) InsertGroupMember(groupID int, userID int, role string) error {
 	defer cancel()
 
 	query := `
-		INSERT INTO group_member (group_id, user_id, role)
+		INSERT INTO group_members (group_id, user_id, role)
 		VALUES ($1, $2, $3)
 	`
 
@@ -30,7 +30,7 @@ func (db *DB) IsGroupMember(groupID int, userID int) (bool, error) {
 
 	query := `
 		SELECT COUNT(*)
-		FROM group_member
+		FROM group_members
 		WHERE group_id = $1 AND user_id = $2
 	`
 
@@ -54,7 +54,7 @@ func (db *DB) GroupMembersByGroupID(groupID int) ([]GroupMember, error) {
 			u.avatar,
 			gm.role,
 			gm.joined_at
-		FROM group_member AS gm
+		FROM group_members AS gm
 		JOIN user AS u ON gm.user_id = u.id
 		WHERE gm.group_id = $1
 	`

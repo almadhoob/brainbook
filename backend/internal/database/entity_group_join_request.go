@@ -20,10 +20,10 @@ func (db *DB) InsertJoinRequest(groupID int, requesterID int, targetID int) erro
 	defer cancel()
 
 	query := `
-		INSERT INTO group_join_request (group_id, requester_id, target_id, status)
+		INSERT INTO group_join_requests (group_id, requester_id, target_id, status)
 		SELECT $1, $2, $3, 'pending'
 		WHERE NOT EXISTS (
-			SELECT 1 FROM group_join_request
+			SELECT 1 FROM group_join_requests
 			WHERE group_id = $1 AND requester_id = $2 AND target_id = $3 AND status = 'pending'
 		)
 	`
@@ -39,7 +39,7 @@ func (db *DB) RequestExistsAndPending(groupID int, requesterID int, targetID int
 	var status string
 	query := `
         SELECT status
-        FROM group_join_request
+        FROM group_join_requests
         WHERE group_id = $1 AND requester_id = $2 AND target_id = $3
         LIMIT 1
     `
@@ -67,7 +67,7 @@ func (db *DB) PendingJoinRequestsByGroupID(groupID int) ([]GroupJoinRequest, err
 		u.avatar,
 		gjr.status,
 		gjr.created_at	
-	FROM group_join_request AS gjr
+	FROM group_join_requests AS gjr
 		JOIN user AS u ON gjr.requester_id = u.id
 		WHERE gjr.group_id = $1
   		AND gjr.status = 'pending'
@@ -87,7 +87,7 @@ func (db *DB) UpdateJoinRequestStatus(requestID int, newStatus string) error {
 	defer cancel()
 
 	query := `
-		UPDATE group_join_request
+		UPDATE group_join_requests
 		SET status = $1
 		WHERE id = $2
 	`

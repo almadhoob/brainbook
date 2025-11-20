@@ -19,7 +19,7 @@ func (db *DB) InsertGroupPostComment(content string, file []byte, currentDateTim
 	defer cancel()
 
 	query := `
-		INSERT INTO group_post_comment (group_post_id, user_id, content, file, created_at)
+		INSERT INTO group_post_comments (group_post_id, user_id, content, file, created_at)
 		VALUES ($1, $2, $3, $4, $5)
 	`
 
@@ -50,7 +50,7 @@ func (db *DB) GetCommentsForGroupPost(groupPostID int) ([]GroupPostComment, erro
 			c.content,
 			c.file,
 			c.created_at
-		FROM group_post_comment AS c
+		FROM group_post_comments AS c
 		JOIN user AS u ON c.user_id = u.id
 		WHERE c.group_post_id = $1
 		ORDER BY c.created_at ASC

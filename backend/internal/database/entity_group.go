@@ -17,7 +17,7 @@ func (db *DB) InsertGroup(ownerID int, title string, description string) (int, e
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
 	query := `
-		INSERT INTO group (owner_id, title, description, created_at)
+		INSERT INTO groups (owner_id, title, description, created_at)
 		VALUES ($1, $2, $3, $4)
 	`
 	result, err := db.ExecContext(ctx, query, ownerID, title, description, time.Now())
@@ -37,7 +37,7 @@ func (db *DB) AllGroups() ([]Group, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
 
-	query := `SELECT * FROM group`
+	query := `SELECT * FROM groups`
 
 	var groups []Group
 	err := db.SelectContext(ctx, &groups, query)
@@ -52,7 +52,7 @@ func (db *DB) GroupByID(groupID int) (*Group, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
 
-	query := `SELECT * FROM group WHERE id = $1`
+	query := `SELECT * FROM groups WHERE id = $1`
 
 	var group Group
 	err := db.GetContext(ctx, &group, query, groupID)
@@ -70,8 +70,8 @@ func (db *DB) GroupsByUserID(userID int) ([]Group, error) {
 	var groups []Group
 
 	query := `SELECT *
-		FROM group g 
-		JOIN group_member as gm ON gm.user_id = $1
+		FROM groups g 
+		JOIN group_members as gm ON gm.user_id = $1
 		WHERE gm.group_id = g.id
 		ORDER BY g.title ASC`
 

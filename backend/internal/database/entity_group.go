@@ -46,7 +46,7 @@ type GroupPost struct {
 	ID           int       `db:"id" json:"id"` //post id
 	GroupID      int       `db:"group_id" json:"group_id"`
 	Content      string    `db:"content" json:"content"`
-	Image        []byte    `db:"image" json:"image,omitempty"`
+	File         []byte    `db:"file" json:"file,omitempty"`
 	CreatedAt    time.Time `db:"created_at" json:"created_at"`
 	CommentCount int       `db:"comment_count" json:"comment_count"`
 	Comments     []Comment `json:"comments"`
@@ -209,14 +209,14 @@ func (db *DB) InsertJoinRequest(groupID int, requesterID int, targetID int) erro
 
 	query := `
 		INSERT INTO group_join_request (group_id, requester_id, target_id, status)
-		VALUES ($1, $2, $3, 'pending')
+		SELECT $1, $2, $3, 'pending'
 		WHERE NOT EXISTS (
 			SELECT 1 FROM group_join_request
 			WHERE group_id = $1 AND requester_id = $2 AND target_id = $3 AND status = 'pending'
 		)
 	`
 
-	_, err := db.ExecContext(ctx, query, groupID, requesterID)
+	_, err := db.ExecContext(ctx, query, groupID, requesterID, targetID)
 	return err
 }
 
@@ -263,8 +263,7 @@ func (db *DB) PendingJoinRequestsByGroupID(groupID int) ([]GroupJoinRequest, err
 	SELECT
 		gjr.id AS request_id,
 		gjr.group_id,
-		gjr.requester_id,
-		gjr.target_id,
+		u.id as user_id,
 		u.f_name,
 		u.l_name,
 		u.avatar,
@@ -345,17 +344,20 @@ func (db *DB) GetEventParticipants(eventID int) ([]GroupMember, error) {
 	defer cancel()
 
 	query := `
-	SELECT 
-		u.id as user_id,
-		u.f_name,
-		u.l_name,
-		u.avatar,
-		gm.role,
-		gm.joined_at
-	FROM event_participation AS ep
-	JOIN group_member AS gm ON ep.user_id = gm.user_id
-	JOIN user AS u ON gm.user_id = u.id
-	WHERE ep.event_id = $1
+	SELECT
+    u.id       AS user_id,
+    u.f_name,
+    u.l_name,
+    u.avatar,
+    gm.role,
+    gm.joined_at
+FROM event_has_user AS ehu
+JOIN user AS u
+    ON ehu.user_id = u.id
+LEFT JOIN group_member AS gm
+    ON gm.user_id = u.id
+   AND gm.group_id = (SELECT group_id FROM event WHERE id = $1)
+WHERE ehu.event_id = $1;
 	`
 
 	var participants []GroupMember
@@ -369,7 +371,7 @@ func (db *DB) GetEventParticipants(eventID int) ([]GroupMember, error) {
 
 //queries need adjusting
 
-func (db *DB) InsertGroupPost(content string, image []byte, currentDateTime string, userID int, groupID int) (int, error) {
+func (db *DB) InsertGroupPost(content string, file []byte, currentDateTime string, userID int, groupID int) (int, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
 
@@ -378,7 +380,7 @@ func (db *DB) InsertGroupPost(content string, image []byte, currentDateTime stri
 		VALUES ($1, $2, $3, $4, $5)
 	`
 
-	result, err := db.ExecContext(ctx, query, userID, groupID, content, image, currentDateTime)
+	result, err := db.ExecContext(ctx, query, userID, groupID, content, file, currentDateTime)
 	if err != nil {
 		return 0, err
 	}
@@ -398,14 +400,21 @@ func (db *DB) GetGroupPosts(groupID int) ([]GroupPost, error) {
 
 	query := `
 	SELECT 
-		p.id, p.user_id, u.f_name, u.l_name, u.avatar, gm.role, p.group_id, p.content, p.image, p.created_at,
-		COALESCE(COUNT(c.id), 0) as comment_count
+		p.id,
+		p.group_id,
+		u.id as user_id,
+		u.f_name,
+		u.l_name,
+		u.avatar,
+		p.content,
+		p.file,
+		p.created_at,
+		COALESCE(COUNT(gpc.id), 0) as comment_count
 	FROM group_post p
 	JOIN user u ON p.user_id = u.id
-	JOIN group_member gm ON p.user_id = gm.user_id AND p.group_id = gm.group_id
-	LEFT JOIN comment c ON p.id = c.post_id
+	LEFT JOIN group_post_comment gpc ON gpc.group_post_id = p.id
 	WHERE p.group_id = $1
-	GROUP BY p.id
+	GROUP BY p.id, p.group_id, u.id, u.f_name, u.l_name, u.avatar, p.content, p.file, p.created_at
 	ORDER BY p.created_at DESC
 	`
 
@@ -424,25 +433,22 @@ func (db *DB) GetGroupPostByID(groupPostID int) (*GroupPost, error) {
 
 	query := `
 		SELECT 
-			gp.id AS group_post_id,
+			gp.id,
 			gp.group_id,
-			g.name AS group_name,
-			gp.user_id,
+			u.id as user_id,
 			u.f_name,
 			u.l_name,
 			u.avatar,
 			gp.content,
-			gp.image,
+			gp.file,
 			gp.created_at,
-			COUNT(c.id) AS comment_count
+			COALESCE(COUNT(gpc.id), 0) AS comment_count
 		FROM group_post AS gp
-		JOIN group AS g ON gp.group_id = g.id
 		JOIN user AS u ON gp.user_id = u.id
-		LEFT JOIN comment AS c ON c.group_post_id = gp.id
+		LEFT JOIN group_post_comment AS gpc ON gpc.group_post_id = gp.id
 		WHERE gp.id = $1
 		GROUP BY 
-			gp.id, gp.group_id, g.name, gp.user_id, 
-			u.f_name, u.l_name, u.avatar, gp.content, gp.image, gp.created_at
+			gp.id, gp.group_id, u.id, u.f_name, u.l_name, u.avatar, gp.content, gp.file, gp.created_at
 	`
 
 	var groupPost GroupPost
@@ -454,7 +460,7 @@ func (db *DB) GetGroupPostByID(groupPostID int) (*GroupPost, error) {
 	return &groupPost, nil
 }
 
-func (db *DB) InsertGroupPostComment(content string, image []byte, currentDateTime string, groupPostID int, userID int) (int, error) {
+func (db *DB) InsertGroupPostComment(content string, file []byte, currentDateTime string, groupPostID int, userID int) (int, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
 
@@ -463,7 +469,7 @@ func (db *DB) InsertGroupPostComment(content string, image []byte, currentDateTi
 		VALUES ($1, $2, $3, $4, $5)
 	`
 
-	result, err := db.ExecContext(ctx, query, groupPostID, userID, content, image, currentDateTime)
+	result, err := db.ExecContext(ctx, query, groupPostID, userID, content, file, currentDateTime)
 	if err != nil {
 		return 0, err
 	}
@@ -482,9 +488,8 @@ func (db *DB) GetCommentsForGroupPost(groupPostID int) ([]GroupPostComment, erro
 
 	query := `
 		SELECT 
-			c.id AS comment_id,
-			c.group_post_id,
-			c.user_id,
+			c.id,
+			u.id as user_id,
 			u.f_name,
 			u.l_name,
 			u.avatar,

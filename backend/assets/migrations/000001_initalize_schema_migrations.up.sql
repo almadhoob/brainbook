@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS user (
     f_name TEXT NOT NULL,
     l_name TEXT NOT NULL,
     email TEXT NOT NULL,
-    password TEXT NOT NULL,
+    hashed_password TEXT NOT NULL,
     dob DATETIME NOT NULL,
     avatar BLOB,
     nickname TEXT,
@@ -125,7 +125,7 @@ CREATE TABLE IF NOT EXISTS conversation_message (
     sender_id INTEGER NOT NULL,
     content TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (conversation_id) REFERENCES private_conversation(id),
+    FOREIGN KEY (conversation_id) REFERENCES conversation(id),
     FOREIGN KEY (sender_id) REFERENCES user(id)
 );
 

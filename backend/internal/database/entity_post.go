@@ -51,7 +51,7 @@ func (db *DB) PostsVisibleFromUser(viewerID, targetUserID int) ([]Post, error) {
 			COALESCE(COUNT(c.id), 0) AS comment_count
 		FROM post p
 		JOIN user u ON p.user_id = u.id
-		LEFT JOIN comment c ON p.id = c.post_id
+		LEFT JOIN post_comment c ON p.id = c.post_id
 		WHERE 
 			p.user_id = $2
 			AND (
@@ -95,9 +95,8 @@ func (db *DB) PostsVisibleFromUser(viewerID, targetUserID int) ([]Post, error) {
 	return posts, nil
 }
 
-
 // TODO: modify to return all posts with a condition for private ones
-func (db*DB) PrivatePostsByUserID(userID int) ([]Post, error) {
+func (db *DB) PrivatePostsByUserID(userID int) ([]Post, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
 
@@ -108,8 +107,8 @@ func (db*DB) PrivatePostsByUserID(userID int) ([]Post, error) {
 		COALESCE(COUNT(c.id), 0) as comment_count
 		FROM post p
 		JOIN user u ON p.user_id = u.id
-		LEFT JOIN comment c ON p.id = c.post_id
-		WHERE p.user_id = $1 AND p.is_private = TRUE
+		LEFT JOIN post_comment c ON p.id = c.post_id
+		WHERE p.user_id = $1 AND p.visibility = 'private'
 		GROUP BY p.id, u.f_name, u.l_name, u.avatar, p.content, p.file, p.created_at
 		ORDER BY p.created_at DESC`
 
@@ -120,6 +119,7 @@ func (db*DB) PrivatePostsByUserID(userID int) ([]Post, error) {
 
 	return posts, nil
 }
+
 // Retrieves all private & public posts a user can view
 func (db *DB) AllPostsByUserID(userID int) ([]Post, error) {
 
@@ -140,7 +140,7 @@ func (db *DB) AllPostsByUserID(userID int) ([]Post, error) {
 	FROM post p
 	JOIN user u 
     ON p.user_id = u.id
-	LEFT JOIN comment c 
+	LEFT JOIN post_comment c 
     ON p.id = c.post_id
 	WHERE 
 			(
@@ -192,7 +192,7 @@ func (db *DB) LimitedPostsByUserID(userID int) ([]Post, error) {
 		FROM post p
 		JOIN user u 
 			ON p.user_id = u.id
-		LEFT JOIN comment c 
+		LEFT JOIN post_comment c 
 			ON p.id = c.post_id
 		JOIN post_user_can_view pcv 
 			ON pcv.post_id = p.id

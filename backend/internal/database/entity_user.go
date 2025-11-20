@@ -56,8 +56,6 @@ func (user *User) IsUserIDMatching(targetUserID int) bool {
 	return user.ID == targetUserID
 }
 
-
-
 func (db *DB) InsertUser(firstName, lastName, email, hashedPassword, nickname, bio string, dob time.Time, avatar []byte) (int, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
@@ -117,7 +115,7 @@ func (db *DB) UserByUsername(username string) (*User, bool, error) {
 
 	var user User
 
-	query := `SELECT * FROM user WHERE username = $1`
+	query := `SELECT * FROM user WHERE nickname = $1`
 
 	err := db.GetContext(ctx, &user, query, username)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -193,13 +191,13 @@ func (db *DB) UpdateAvatar(userID int, avatar []byte) error {
 	return err
 }
 
-func (db *DB) UpdatePrivacy(userID int, isPrivate bool) error {
+func (db *DB) UpdatePrivacy(userID int, isPublic bool) error {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
 
-	query := `UPDATE user SET is_private = $1 WHERE id = $2`
+	query := `UPDATE user SET is_public = $1 WHERE id = $2`
 
-	_, err := db.ExecContext(ctx, query, isPrivate, userID)
+	_, err := db.ExecContext(ctx, query, isPublic, userID)
 	return err
 }
 
@@ -217,7 +215,6 @@ func (db *DB) PendingFollowRequestsCount(userID int) (int, error) {
 
 	return count, nil
 }
-
 
 // GetTotaluser.UserCountExcludinguser.User returns the total number of users excluding a specific user
 func (db *DB) TotalUserCount() (int, error) {
@@ -245,20 +242,25 @@ func (db *DB) UserList(currentUserID int) ([]UserWithLastMessageTime, error) {
 	defer cancel()
 
 	query := `
-		SELECT u.id, u.f_name, u.l_name 
-			CASE WHEN MAX(m.created_at) IS NOT NULL 
-				THEN datetime(MAX(m.created_at))
-				ELSE NULL 
-			END as last_message_time
+		SELECT 
+			u.id AS user_id,
+			u.f_name,
+			u.l_name,
+			u.avatar,
+			(
+				SELECT datetime(MAX(cm.created_at))
+				FROM conversation conv
+				JOIN conversation_message cm ON cm.conversation_id = conv.id
+				WHERE (conv.user1_id = u.id AND conv.user2_id = $1)
+				   OR (conv.user2_id = u.id AND conv.user1_id = $1)
+			) AS last_message_time
 		FROM user u
-		LEFT JOIN message m ON u.id = (m.sender_id
-			OR m.sender_id = $1)
 		WHERE u.id != $1
-		GROUP BY u.id, u.username
 		ORDER BY 
-			CASE WHEN MAX(m.created_at) IS NOT NULL THEN 0 ELSE 1 END,
-			MAX(m.created_at) DESC,
-			u.username ASC`
+			CASE WHEN last_message_time IS NULL THEN 1 ELSE 0 END,
+			last_message_time DESC,
+			u.l_name,
+			u.f_name`
 
 	var users []UserWithLastMessageTime
 	err := db.SelectContext(ctx, &users, query, currentUserID)
@@ -268,7 +270,6 @@ func (db *DB) UserList(currentUserID int) ([]UserWithLastMessageTime, error) {
 
 	return users, nil
 }
-
 
 func (db *DB) FollowerCountByUserID(userID int) (int, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)

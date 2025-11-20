@@ -28,12 +28,22 @@ func (app *Application) getConversation(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	_, exists, err := app.DB.ConversationByUserIDs(contextUser.ID, targetUserID)
+	canMessage, err := app.DB.CanUsersMessage(contextUser.ID, targetUserID)
 	if err != nil {
 		app.serverError(w, r, err)
 		return
 	}
-	
+	if !canMessage {
+		app.Unauthorized(w, r)
+		return
+	}
+
+	conversation, exists, err := app.DB.ConversationByUserIDs(contextUser.ID, targetUserID)
+	if err != nil {
+		app.serverError(w, r, err)
+		return
+	}
+
 	if !exists {
 		// Responds with an empty slice when no conversation exists
 		responseData := map[string]interface{}{
@@ -86,13 +96,13 @@ func (app *Application) getConversation(w http.ResponseWriter, r *http.Request) 
 
 	offset := (page - 1) * limit
 
-	messages, err := app.DB.PaginatedConversationMessagesByUserIDs(contextUser.ID, targetUserID, offset, limit)
+	messages, err := app.DB.PaginatedConversationMessages(conversation.ID, offset, limit)
 	if err != nil {
 		app.serverError(w, r, err)
 		return
 	}
 
-	totalMessageCount, err := app.DB.MessageCount(targetUserID)
+	totalMessageCount, err := app.DB.MessageCount(conversation.ID)
 	if err != nil {
 		app.serverError(w, r, err)
 		return

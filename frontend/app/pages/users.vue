@@ -21,7 +21,7 @@ const columnFilters = ref([{
 const columnVisibility = ref()
 const rowSelection = ref({ 1: true })
 
-const { data, status } = await useFetch<User[]>('/api/customers', {
+const { data, status } = await useFetch<User[]>('/api/users', {
   lazy: true
 })
 
@@ -198,15 +198,15 @@ const pagination = ref({
 </script>
 
 <template>
-  <UDashboardPanel id="customers">
+  <UDashboardPanel id="users">
     <template #header>
-      <UDashboardNavbar title="Customers">
+      <UDashboardNavbar title="Users">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
 
         <template #right>
-          <CustomersAddModal />
+          <UsersAddModal />
         </template>
       </UDashboardNavbar>
     </template>
@@ -222,7 +222,7 @@ const pagination = ref({
         />
 
         <div class="flex flex-wrap items-center gap-1.5">
-          <CustomersDeleteModal :count="table?.tableApi?.getFilteredSelectedRowModel().rows.length">
+          <UsersDeleteModal :count="table?.tableApi?.getFilteredSelectedRowModel().rows.length">
             <UButton
               v-if="table?.tableApi?.getFilteredSelectedRowModel().rows.length"
               label="Delete"
@@ -236,7 +236,7 @@ const pagination = ref({
                 </UKbd>
               </template>
             </UButton>
-          </CustomersDeleteModal>
+          </UsersDeleteModal>
 
           <USelect
             v-model="statusFilter"

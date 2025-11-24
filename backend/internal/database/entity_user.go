@@ -45,6 +45,14 @@ type UserWithLastMessageTime struct {
 	UserSummary
 }
 
+type FollowRequest struct {
+	ID          int       `db:"id" json:"id"`
+	RequesterID int       `db:"requester_id" json:"requester_id"`
+	TargetID    int       `db:"target_id" json:"target_id"`
+	Status      string    `db:"status" json:"status"`
+	CreatedAt   time.Time `db:"created_at" json:"created_at"`
+}
+
 type UserPatch struct {
 	Avatar   *[]byte `json:"avatar"`
 	Nickname *string `json:"nickname"`
@@ -55,8 +63,6 @@ type UserPatch struct {
 func (user *User) IsUserIDMatching(targetUserID int) bool {
 	return user.ID == targetUserID
 }
-
-
 
 func (db *DB) InsertUser(firstName, lastName, email, hashedPassword, nickname, bio string, dob time.Time, avatar []byte) (int, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
@@ -117,7 +123,7 @@ func (db *DB) UserByUsername(username string) (*User, bool, error) {
 
 	var user User
 
-	query := `SELECT * FROM user WHERE username = $1`
+	query := `SELECT * FROM user WHERE nickname = $1`
 
 	err := db.GetContext(ctx, &user, query, username)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -193,13 +199,13 @@ func (db *DB) UpdateAvatar(userID int, avatar []byte) error {
 	return err
 }
 
-func (db *DB) UpdatePrivacy(userID int, isPrivate bool) error {
+func (db *DB) UpdatePrivacy(userID int, isPublic bool) error {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
 
-	query := `UPDATE user SET is_private = $1 WHERE id = $2`
+	query := `UPDATE user SET is_public = $1 WHERE id = $2`
 
-	_, err := db.ExecContext(ctx, query, isPrivate, userID)
+	_, err := db.ExecContext(ctx, query, isPublic, userID)
 	return err
 }
 
@@ -218,6 +224,64 @@ func (db *DB) PendingFollowRequestsCount(userID int) (int, error) {
 	return count, nil
 }
 
+func (db *DB) CreateFollowRequest(requesterID, targetID int, status string) (*FollowRequest, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+
+	if status == "" {
+		status = "pending"
+	}
+
+	query := `INSERT INTO follow_request (requester_id, target_id, status) VALUES ($1, $2, $3)`
+	result, err := db.ExecContext(ctx, query, requesterID, targetID, status)
+	if err != nil {
+		return nil, err
+	}
+
+	id, err := result.LastInsertId()
+	if err != nil {
+		return nil, err
+	}
+
+	return db.FollowRequestByID(int(id))
+}
+
+func (db *DB) FollowRequestBetween(requesterID, targetID int) (*FollowRequest, bool, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+
+	var fr FollowRequest
+	query := `SELECT id, requester_id, target_id, status, created_at FROM follow_request WHERE requester_id = $1 AND target_id = $2 ORDER BY created_at DESC LIMIT 1`
+	err := db.GetContext(ctx, &fr, query, requesterID, targetID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, false, nil
+	}
+	if err != nil {
+		return nil, false, err
+	}
+	return &fr, true, nil
+}
+
+func (db *DB) FollowRequestByID(id int) (*FollowRequest, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+
+	var fr FollowRequest
+	query := `SELECT id, requester_id, target_id, status, created_at FROM follow_request WHERE id = $1`
+	if err := db.GetContext(ctx, &fr, query, id); err != nil {
+		return nil, err
+	}
+	return &fr, nil
+}
+
+func (db *DB) UpdateFollowRequestStatus(id int, status string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+
+	query := `UPDATE follow_request SET status = $1 WHERE id = $2`
+	_, err := db.ExecContext(ctx, query, status, id)
+	return err
+}
 
 // GetTotaluser.UserCountExcludinguser.User returns the total number of users excluding a specific user
 func (db *DB) TotalUserCount() (int, error) {
@@ -245,20 +309,25 @@ func (db *DB) UserList(currentUserID int) ([]UserWithLastMessageTime, error) {
 	defer cancel()
 
 	query := `
-		SELECT u.id, u.f_name, u.l_name 
-			CASE WHEN MAX(m.created_at) IS NOT NULL 
-				THEN datetime(MAX(m.created_at))
-				ELSE NULL 
-			END as last_message_time
+		SELECT 
+			u.id AS user_id,
+			u.f_name,
+			u.l_name,
+			u.avatar,
+			(
+				SELECT datetime(MAX(cm.created_at))
+				FROM conversation conv
+				JOIN conversation_message cm ON cm.conversation_id = conv.id
+				WHERE (conv.user1_id = u.id AND conv.user2_id = $1)
+				   OR (conv.user2_id = u.id AND conv.user1_id = $1)
+			) AS last_message_time
 		FROM user u
-		LEFT JOIN message m ON u.id = (m.sender_id
-			OR m.sender_id = $1)
 		WHERE u.id != $1
-		GROUP BY u.id, u.username
 		ORDER BY 
-			CASE WHEN MAX(m.created_at) IS NOT NULL THEN 0 ELSE 1 END,
-			MAX(m.created_at) DESC,
-			u.username ASC`
+			CASE WHEN last_message_time IS NULL THEN 1 ELSE 0 END,
+			last_message_time DESC,
+			u.l_name,
+			u.f_name`
 
 	var users []UserWithLastMessageTime
 	err := db.SelectContext(ctx, &users, query, currentUserID)
@@ -268,7 +337,6 @@ func (db *DB) UserList(currentUserID int) ([]UserWithLastMessageTime, error) {
 
 	return users, nil
 }
-
 
 func (db *DB) FollowerCountByUserID(userID int) (int, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
@@ -351,4 +419,34 @@ func (db *DB) FollowingByUserID(userID int) ([]UserSummary, error) {
 	}
 
 	return following, nil
+}
+
+// CanUsersMessage enforces the rule that at least one user must follow the other
+// or the receiver must have a public profile before direct messages are allowed.
+func (db *DB) CanUsersMessage(senderID, receiverID int) (bool, error) {
+	receiver, found, err := db.UserById(receiverID)
+	if err != nil {
+		return false, err
+	}
+	if !found {
+		return false, nil
+	}
+	if receiver.IsPublic {
+		return true, nil
+	}
+
+	followsForward, err := db.IsFollowing(senderID, receiverID)
+	if err != nil {
+		return false, err
+	}
+	if followsForward {
+		return true, nil
+	}
+
+	followsReverse, err := db.IsFollowing(receiverID, senderID)
+	if err != nil {
+		return false, err
+	}
+
+	return followsReverse, nil
 }

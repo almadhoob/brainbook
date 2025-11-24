@@ -16,9 +16,10 @@ type Conversation struct {
 }
 
 type Message struct {
-	SenderID  int       `db:"sender_id" json:"sender_id"`
-	Content   string    `db:"content" json:"content"`
-	CreatedAt time.Time `db:"created_at" json:"created_at"`
+	ConversationID int       `db:"conversation_id" json:"conversation_id,omitempty"`
+	SenderID       int       `db:"sender_id" json:"sender_id"`
+	Content        string    `db:"content" json:"content"`
+	CreatedAt      time.Time `db:"created_at" json:"created_at"`
 }
 
 func (db *DB) ConversationByUserIDs(user1ID, user2ID int) (*Conversation, bool, error) {
@@ -40,15 +41,15 @@ func (db *DB) ConversationByUserIDs(user1ID, user2ID int) (*Conversation, bool, 
 	return &conversation, true, err
 }
 
-func (db *DB) InsertMessage(senderid int, content string, currentDateTime string) (int, error) {
+func (db *DB) InsertMessage(conversationID int, senderID int, content string, currentDateTime string) (int, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
 
 	query := `
-    INSERT INTO conversation_message (sender_id, message, created_at)
-    VALUES ($1, $2, $3)`
+    INSERT INTO conversation_message (conversation_id, sender_id, content, created_at)
+    VALUES ($1, $2, $3, $4)`
 
-	result, err := db.ExecContext(ctx, query, senderid, content, currentDateTime)
+	result, err := db.ExecContext(ctx, query, conversationID, senderID, content, currentDateTime)
 	if err != nil {
 		return 0, err
 	}
@@ -80,31 +81,30 @@ func (db *DB) InsertConversation(user1ID, user2ID int, lastMessageTime, currentD
 	return int(id), err
 }
 
-func (db *DB) UpdateConversationLastMessageTime(lastMessageTime string) error {
+func (db *DB) UpdateConversationLastMessageTime(conversationID int, lastMessageTime string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
 
-	query := `UPDATE conversation SET last_message_time = $1`
+	query := `UPDATE conversation SET last_message_time = $1 WHERE id = $2`
 
-	_, err := db.ExecContext(ctx, query, lastMessageTime)
+	_, err := db.ExecContext(ctx, query, lastMessageTime, conversationID)
 	return err
 }
 
-func (db *DB) PaginatedConversationMessagesByUserIDs(contextUserID, targetUserID, offset, limit int) ([]Message, error) {
+func (db *DB) PaginatedConversationMessages(conversationID, offset, limit int) ([]Message, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
 
 	var messages []Message
 
 	query := `
-    SELECT m.sender_id, m.content, m.created_at
+    SELECT m.conversation_id, m.sender_id, m.content, m.created_at
     FROM conversation_message m
-	JOIN user u ON m.sender_id = u.id
-	WHERE m.sender_id = $1 OR m.sender_id = $2
+	WHERE m.conversation_id = $1
     ORDER BY m.created_at DESC
-    LIMIT $3 OFFSET $4`
+    LIMIT $2 OFFSET $3`
 
-	err := db.SelectContext(ctx, &messages, query, contextUserID, targetUserID, limit, offset)
+	err := db.SelectContext(ctx, &messages, query, conversationID, limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -126,9 +126,8 @@ func (db *DB) MessageCount(conversationID int) (int, error) {
 	var count int
 	query := `
     SELECT COUNT(*) 
-    FROM message 
-	JOIN private_conversation c ON m.conversation_id = c.id
-	WHERE c.id = $1`
+    FROM conversation_message
+	WHERE conversation_id = $1`
 
 	err := db.GetContext(ctx, &count, query, conversationID)
 	return count, err

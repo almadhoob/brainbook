@@ -24,11 +24,27 @@ func (app *Application) routes() http.Handler {
 		GetMethod("/protected/v1/private-messages/user/{id}", app.getConversation).
 		GetMethod("/protected/v1/posts", app.getPosts).
 		GetMethod("/protected/v1/comments", app.getPostComments).
-		GetMethod("/protected/v1/groups/{group_id}/members", app.getMembers).
+		GetMethod("/protected/v1/notifications", app.getNotifications).
+		GetMethod("/protected/v1/groups", app.getGroups).
+		GetMethod("/protected/v1/user/groups", app.userGroups).
+		GetMethod("/protected/v1/groups/{group_id}", app.withGroup(app.groupDetails)).
+		GetMethod("/protected/v1/groups/{group_id}/members", app.requireGroupMember(app.getMembers)).
+		GetMethod("/protected/v1/groups/{group_id}/posts", app.withGroup(app.groupPosts)).
+		GetMethod("/protected/v1/groups/{group_id}/messages", app.requireGroupMember(app.getGroupMessages)).
+		GetMethod("/protected/v1/groups/{group_id}/events", app.requireGroupMember(app.listGroupEvents)).
+		GetMethod("/protected/v1/groups/{group_id}/posts/{post_id}/comments", app.requireGroupMember(app.getGroupPostComments)).
 		PostMethod("/protected/v1/posts", app.createPost).
 		PostMethod("/protected/v1/comments", app.createComment).
 		PostMethod("/protected/v1/logout", app.logout).
-		PostMethod("/protected/v1/profile/update", app.updateProfile)
+		PostMethod("/protected/v1/profile/update", app.updateProfile).
+		PostMethod("/protected/v1/notifications/{notification_id}/read", app.markNotificationRead).
+		PostMethod("/protected/v1/users/{user_id}/follow", app.sendFollowRequest).
+		PostMethod("/protected/v1/follow-requests/{request_id}", app.respondFollowRequest).
+		PostMethod("/protected/v1/groups/{group_id}/create", app.requireGroupMember(app.groupPostCreate)).
+		PostMethod("/protected/v1/groups/{group_id}/posts/{post_id}/comments", app.requireGroupMember(app.createGroupPostComment)).
+		PostMethod("/protected/v1/groups/{group_id}/events", app.requireGroupOwner(app.createGroupEvent)).
+		PostMethod("/protected/v1/groups/{group_id}/join", app.withGroup(app.joinGroupRequest)).
+		PostMethod("/protected/v1/groups/{group_id}/send", app.requireGroupOwner(app.SendGroupInvite))
 
 	publicMux, guestMux, protectedMux := registry.GetMuxes()
 

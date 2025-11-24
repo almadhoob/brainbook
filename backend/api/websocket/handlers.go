@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/gorilla/websocket"
 	"brainbook-api/internal/response"
 	t "brainbook-api/internal/time"
 	"brainbook-api/internal/validator"
+	"github.com/gorilla/websocket"
 )
 
 // SendMessageHandler will send out a message to all other participants in the chat
@@ -57,6 +57,17 @@ func SendMessageHandler(event Event, c *Client) error {
 		return nil
 	}
 
+	canMessage, err := c.manager.DB.CanUsersMessage(user.ID, chatevent.ReceiverID)
+	if err != nil {
+		return fmt.Errorf("failed to verify messaging permission: %v", err)
+	}
+	if !canMessage {
+		c.sendErrorEventWithContext("MESSAGE_NOT_ALLOWED", "You cannot send messages to this user", map[string]interface{}{
+			"receiver_id": chatevent.ReceiverID,
+		})
+		return nil
+	}
+
 	// Check if receiver is online
 	log.Printf("Looking for receiver client with ID: %d", chatevent.ReceiverID)
 	receiverClient := c.manager.getClientByUserID(chatevent.ReceiverID)
@@ -72,11 +83,28 @@ func SendMessageHandler(event Event, c *Client) error {
 	// Generate single timestamp for consistency between database and client
 	currentDateTime := t.CurrentTime()
 
+	conversation, exists, err := c.manager.DB.ConversationByUserIDs(user.ID, chatevent.ReceiverID)
+	if err != nil {
+		return fmt.Errorf("failed to fetch conversation: %v", err)
+	}
+
+	var conversationID int
+	if exists {
+		conversationID = conversation.ID
+	} else {
+		conversationID, err = c.manager.DB.InsertConversation(user.ID, chatevent.ReceiverID, currentDateTime, currentDateTime)
+		if err != nil {
+			return fmt.Errorf("failed to create conversation: %v", err)
+		}
+	}
+
 	// Save message to database
-	_, err = c.manager.DB.InsertMessage(user.ID, chatevent.Message, currentDateTime)
+	_, err = c.manager.DB.InsertMessage(conversationID, user.ID, chatevent.Message, currentDateTime)
 	if err != nil {
 		return fmt.Errorf("failed to save message: %v", err)
 	}
+
+	_ = c.manager.DB.UpdateConversationLastMessageTime(conversationID, currentDateTime)
 
 	// Prepare outgoing message
 	var broadMessage ReceiveMessageEvent
@@ -100,6 +128,90 @@ func SendMessageHandler(event Event, c *Client) error {
 
 	// Send confirmation back to sender
 	c.egress <- outgoingEvent
+
+	c.manager.CreateAndPushNotification(chatevent.ReceiverID, "direct_message", map[string]interface{}{
+		"sender_id":       user.ID,
+		"conversation_id": conversationID,
+		"message":         chatevent.Message,
+	})
+
+	return nil
+}
+
+func SendGroupMessageHandler(event Event, c *Client) error {
+	var payload SendGroupMessageEvent
+	if err := json.Unmarshal(event.Payload, &payload); err != nil {
+		return fmt.Errorf("bad payload in request: %v", err)
+	}
+
+	user, found, err := c.manager.DB.UserBySession(payload.SessionToken)
+	if err != nil || !found {
+		c.closeWithReason(websocket.ClosePolicyViolation, "Invalid session token")
+		return nil
+	}
+
+	var v validator.Validator
+	v.CheckField(validator.NotBlank(payload.Message), "message", "Message cannot be empty")
+	v.CheckField(payload.GroupID > 0, "group_id", "Invalid group ID")
+	if v.HasErrors() {
+		for field, msg := range v.FieldErrors {
+			c.sendErrorEventWithContext("VALIDATION_ERROR", msg, map[string]interface{}{"field": field})
+		}
+		return nil
+	}
+
+	isMember, err := c.manager.DB.IsGroupMember(payload.GroupID, user.ID)
+	if err != nil {
+		return err
+	}
+	if !isMember {
+		c.sendErrorEvent("GROUP_MESSAGE_FORBIDDEN", "You are not a member of this group")
+		return nil
+	}
+
+	currentTime := t.CurrentTime()
+	_, err = c.manager.DB.InsertGroupMessage(payload.GroupID, user.ID, payload.Message, currentTime)
+	if err != nil {
+		return err
+	}
+
+	message := ReceiveGroupMessageEvent{
+		Message:  payload.Message,
+		SenderID: user.ID,
+		GroupID:  payload.GroupID,
+		SentAt:   currentTime,
+	}
+
+	data, err := response.EncodeJSON(message)
+	if err != nil {
+		return err
+	}
+
+	eventOut := Event{Type: EventReceiveGroupMessage, Payload: data}
+	members, err := c.manager.DB.GroupMembersByGroupID(payload.GroupID)
+	if err != nil {
+		return err
+	}
+
+	for _, member := range members {
+		client := c.manager.getClientByUserID(member.ID)
+		if client != nil {
+			select {
+			case client.egress <- eventOut:
+			default:
+				log.Printf("client %d egress full, dropping group message", client.userID)
+			}
+		} else {
+			if member.ID == user.ID {
+				continue
+			}
+			c.manager.CreateAndPushNotification(member.ID, "group_message", map[string]interface{}{
+				"group_id":  payload.GroupID,
+				"sender_id": user.ID,
+				"message":   payload.Message,
+			})
+		}
+	}
 
 	return nil
 }

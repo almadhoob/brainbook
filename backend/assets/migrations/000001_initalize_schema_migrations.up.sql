@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS user (
     f_name TEXT NOT NULL,
     l_name TEXT NOT NULL,
     email TEXT NOT NULL,
-    password TEXT NOT NULL,
+    hashed_password TEXT NOT NULL,
     dob DATETIME NOT NULL,
     avatar BLOB,
     nickname TEXT,
@@ -56,7 +56,7 @@ CREATE TABLE IF NOT EXISTS session (
     FOREIGN KEY (user_id) REFERENCES user(id)
 );
 
-CREATE TABLE IF NOT EXISTS group (
+CREATE TABLE IF NOT EXISTS groups (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     owner_id INTEGER NOT NULL,
     title TEXT,
@@ -65,29 +65,29 @@ CREATE TABLE IF NOT EXISTS group (
     FOREIGN KEY (owner_id) REFERENCES user(id)
 );
 
-CREATE TABLE IF NOT EXISTS group_member (
+CREATE TABLE IF NOT EXISTS group_members (
     group_id INTEGER NOT NULL,
     user_id INTEGER NOT NULL,
     role TEXT CHECK( role IN ('member','owner') ) NOT NULL DEFAULT 'member',
     joined_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (group_id, user_id),
-    FOREIGN KEY (group_id) REFERENCES group(id),
+    FOREIGN KEY (group_id) REFERENCES groups(id),
     FOREIGN KEY (user_id) REFERENCES user(id)
 );
 
-CREATE TABLE IF NOT EXISTS group_join_request (
+CREATE TABLE IF NOT EXISTS group_join_requests (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     group_id INTEGER NOT NULL,
     requester_id INTEGER NOT NULL,
     target_id INTEGER NOT NULL,
     status CHECK( status IN ('pending','accepted','declined') ) NOT NULL DEFAULT 'pending',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (group_id) REFERENCES group(id),
+    FOREIGN KEY (group_id) REFERENCES groups(id),
     FOREIGN KEY (requester_id) REFERENCES user(id),
     FOREIGN KEY (target_id) REFERENCES user(id)
 );
 
-CREATE TABLE IF NOT EXISTS group_post (
+CREATE TABLE IF NOT EXISTS group_posts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
     group_id INTEGER NOT NULL,
@@ -95,17 +95,17 @@ CREATE TABLE IF NOT EXISTS group_post (
     file BLOB,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES user(id),
-    FOREIGN KEY (group_id) REFERENCES group(id)
+    FOREIGN KEY (group_id) REFERENCES groups(id)
 );
 
-CREATE TABLE IF NOT EXISTS group_post_comment (
+CREATE TABLE IF NOT EXISTS group_post_comments (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     group_post_id INTEGER NOT NULL,
     user_id INTEGER NOT NULL,
     content TEXT,
     file BLOB,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (group_post_id) REFERENCES group_post(id),
+    FOREIGN KEY (group_post_id) REFERENCES group_posts(id),
     FOREIGN KEY (user_id) REFERENCES user(id)
 );
 
@@ -125,17 +125,17 @@ CREATE TABLE IF NOT EXISTS conversation_message (
     sender_id INTEGER NOT NULL,
     content TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (conversation_id) REFERENCES private_conversation(id),
+    FOREIGN KEY (conversation_id) REFERENCES conversation(id),
     FOREIGN KEY (sender_id) REFERENCES user(id)
 );
 
-CREATE TABLE IF NOT EXISTS group_message (
+CREATE TABLE IF NOT EXISTS group_messages (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     group_id INTEGER NOT NULL,
     sender_id INTEGER NOT NULL,
     content TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (group_id) REFERENCES group(id),
+    FOREIGN KEY (group_id) REFERENCES groups(id),
     FOREIGN KEY (sender_id) REFERENCES user(id)
 );
 
@@ -146,7 +146,7 @@ CREATE TABLE IF NOT EXISTS event (
     title TEXT NOT NULL,
     description TEXT,
     time DATETIME NOT NULL,
-    FOREIGN KEY (group_id) REFERENCES group(id),
+    FOREIGN KEY (group_id) REFERENCES groups(id),
     FOREIGN KEY (user_id) REFERENCES user(id)
 
 );
@@ -157,5 +157,15 @@ CREATE TABLE IF NOT EXISTS event_has_user (
     interested BOOLEAN NOT NULL,
     PRIMARY KEY (event_id, user_id),
     FOREIGN KEY (event_id) REFERENCES event(id),
+    FOREIGN KEY (user_id) REFERENCES user(id)
+);
+
+CREATE TABLE IF NOT EXISTS notifications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    type TEXT NOT NULL,
+    payload TEXT,
+    is_read BOOLEAN NOT NULL DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES user(id)
 );

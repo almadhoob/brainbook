@@ -26,12 +26,11 @@ func (app *Application) getGroups(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-
+// Get groups that the authenticated user is a member of
 func (app *Application) userGroups(w http.ResponseWriter, r *http.Request) {
 
 	ctx := contextGetAuthenticatedUser(r)
 	userID := ctx.ID
-
 
 	groups := []database.Group{}
 	groups, err := app.DB.GroupsByUserID(userID)
@@ -40,6 +39,7 @@ func (app *Application) userGroups(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	//Should validate if user has no groups
 	responseData := map[string]interface{}{
 		"groups": groups,
 	}
@@ -52,4 +52,16 @@ func (app *Application) userGroups(w http.ResponseWriter, r *http.Request) {
 
 }
 
+func (app *Application) groupDetails(w http.ResponseWriter, r *http.Request) {
+	group := contextGetGroup(r)
 
+	responseData := map[string]interface{}{
+		"group": group,
+	}
+
+	err := response.JSON(w, http.StatusOK, responseData)
+	if err != nil {
+		app.serverError(w, r, err)
+		return
+	}
+}

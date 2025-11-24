@@ -129,6 +129,90 @@ func SendMessageHandler(event Event, c *Client) error {
 	// Send confirmation back to sender
 	c.egress <- outgoingEvent
 
+	c.manager.CreateAndPushNotification(chatevent.ReceiverID, "direct_message", map[string]interface{}{
+		"sender_id":       user.ID,
+		"conversation_id": conversationID,
+		"message":         chatevent.Message,
+	})
+
+	return nil
+}
+
+func SendGroupMessageHandler(event Event, c *Client) error {
+	var payload SendGroupMessageEvent
+	if err := json.Unmarshal(event.Payload, &payload); err != nil {
+		return fmt.Errorf("bad payload in request: %v", err)
+	}
+
+	user, found, err := c.manager.DB.UserBySession(payload.SessionToken)
+	if err != nil || !found {
+		c.closeWithReason(websocket.ClosePolicyViolation, "Invalid session token")
+		return nil
+	}
+
+	var v validator.Validator
+	v.CheckField(validator.NotBlank(payload.Message), "message", "Message cannot be empty")
+	v.CheckField(payload.GroupID > 0, "group_id", "Invalid group ID")
+	if v.HasErrors() {
+		for field, msg := range v.FieldErrors {
+			c.sendErrorEventWithContext("VALIDATION_ERROR", msg, map[string]interface{}{"field": field})
+		}
+		return nil
+	}
+
+	isMember, err := c.manager.DB.IsGroupMember(payload.GroupID, user.ID)
+	if err != nil {
+		return err
+	}
+	if !isMember {
+		c.sendErrorEvent("GROUP_MESSAGE_FORBIDDEN", "You are not a member of this group")
+		return nil
+	}
+
+	currentTime := t.CurrentTime()
+	_, err = c.manager.DB.InsertGroupMessage(payload.GroupID, user.ID, payload.Message, currentTime)
+	if err != nil {
+		return err
+	}
+
+	message := ReceiveGroupMessageEvent{
+		Message:  payload.Message,
+		SenderID: user.ID,
+		GroupID:  payload.GroupID,
+		SentAt:   currentTime,
+	}
+
+	data, err := response.EncodeJSON(message)
+	if err != nil {
+		return err
+	}
+
+	eventOut := Event{Type: EventReceiveGroupMessage, Payload: data}
+	members, err := c.manager.DB.GroupMembersByGroupID(payload.GroupID)
+	if err != nil {
+		return err
+	}
+
+	for _, member := range members {
+		client := c.manager.getClientByUserID(member.ID)
+		if client != nil {
+			select {
+			case client.egress <- eventOut:
+			default:
+				log.Printf("client %d egress full, dropping group message", client.userID)
+			}
+		} else {
+			if member.ID == user.ID {
+				continue
+			}
+			c.manager.CreateAndPushNotification(member.ID, "group_message", map[string]interface{}{
+				"group_id":  payload.GroupID,
+				"sender_id": user.ID,
+				"message":   payload.Message,
+			})
+		}
+	}
+
 	return nil
 }
 

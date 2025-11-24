@@ -45,6 +45,14 @@ type UserWithLastMessageTime struct {
 	UserSummary
 }
 
+type FollowRequest struct {
+	ID          int       `db:"id" json:"id"`
+	RequesterID int       `db:"requester_id" json:"requester_id"`
+	TargetID    int       `db:"target_id" json:"target_id"`
+	Status      string    `db:"status" json:"status"`
+	CreatedAt   time.Time `db:"created_at" json:"created_at"`
+}
+
 type UserPatch struct {
 	Avatar   *[]byte `json:"avatar"`
 	Nickname *string `json:"nickname"`
@@ -214,6 +222,65 @@ func (db *DB) PendingFollowRequestsCount(userID int) (int, error) {
 	}
 
 	return count, nil
+}
+
+func (db *DB) CreateFollowRequest(requesterID, targetID int, status string) (*FollowRequest, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+
+	if status == "" {
+		status = "pending"
+	}
+
+	query := `INSERT INTO follow_request (requester_id, target_id, status) VALUES ($1, $2, $3)`
+	result, err := db.ExecContext(ctx, query, requesterID, targetID, status)
+	if err != nil {
+		return nil, err
+	}
+
+	id, err := result.LastInsertId()
+	if err != nil {
+		return nil, err
+	}
+
+	return db.FollowRequestByID(int(id))
+}
+
+func (db *DB) FollowRequestBetween(requesterID, targetID int) (*FollowRequest, bool, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+
+	var fr FollowRequest
+	query := `SELECT id, requester_id, target_id, status, created_at FROM follow_request WHERE requester_id = $1 AND target_id = $2 ORDER BY created_at DESC LIMIT 1`
+	err := db.GetContext(ctx, &fr, query, requesterID, targetID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, false, nil
+	}
+	if err != nil {
+		return nil, false, err
+	}
+	return &fr, true, nil
+}
+
+func (db *DB) FollowRequestByID(id int) (*FollowRequest, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+
+	var fr FollowRequest
+	query := `SELECT id, requester_id, target_id, status, created_at FROM follow_request WHERE id = $1`
+	if err := db.GetContext(ctx, &fr, query, id); err != nil {
+		return nil, err
+	}
+	return &fr, nil
+}
+
+func (db *DB) UpdateFollowRequestStatus(id int, status string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+
+	query := `UPDATE follow_request SET status = $1 WHERE id = $2`
+	_, err := db.ExecContext(ctx, query, status, id)
+	return err
 }
 
 // GetTotaluser.UserCountExcludinguser.User returns the total number of users excluding a specific user

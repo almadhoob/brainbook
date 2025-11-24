@@ -1,14 +1,16 @@
 package websocket
 
 import (
+	"encoding/json"
 	"errors"
 	"log"
 	"net/http"
 	"sync"
 	"time"
 
-	"github.com/gorilla/websocket"
 	db "brainbook-api/internal/database"
+	"brainbook-api/internal/response"
+	"github.com/gorilla/websocket"
 )
 
 var (
@@ -69,6 +71,7 @@ func NewWebsocketManager() *WebsocketManager {
 func (m *WebsocketManager) setupEventHandlers() {
 	m.handlers[EventSendMessage] = SendMessageHandler
 	m.handlers[EventSendTyping] = SendTypingHandler
+	m.handlers[EventSendGroupMessage] = SendGroupMessageHandler
 	// Note: EventRequestUserList removed - server now broadcasts periodically
 }
 
@@ -96,7 +99,7 @@ func (m *WebsocketManager) HttpToWebsocket(w http.ResponseWriter, r *http.Reques
 	}
 
 	// Creates new client with user info.
-	client := NewClient(conn, m, firstName, lastName, sessionID,  userID)
+	client := NewClient(conn, m, firstName, lastName, sessionID, userID)
 	// Adds newly created client to manager.
 	m.addClient(client)
 	// Send initial status update to new client
@@ -130,4 +133,61 @@ func (m *WebsocketManager) removeClient(client *Client) {
 		client.connection.Close()
 		delete(m.clients, client)
 	}
+}
+
+func (m *WebsocketManager) PushNotification(notification *db.Notification) {
+	if notification == nil {
+		return
+	}
+
+	client := m.getClientByUserID(notification.UserID)
+	if client == nil {
+		return
+	}
+
+	payload := NotificationEvent{
+		ID:        notification.ID,
+		Type:      notification.Type,
+		Payload:   notification.Payload,
+		IsRead:    notification.IsRead,
+		CreatedAt: notification.CreatedAt.Format(time.RFC3339),
+	}
+
+	data, err := response.EncodeJSON(payload)
+	if err != nil {
+		log.Printf("failed to encode notification payload: %v", err)
+		return
+	}
+
+	event := Event{Type: EventNotification, Payload: data}
+
+	select {
+	case client.egress <- event:
+	default:
+		log.Printf("client %d egress full, dropping notification", client.userID)
+	}
+}
+
+func (m *WebsocketManager) CreateAndPushNotification(userID int, notifType string, payload map[string]interface{}) {
+	if m.DB == nil {
+		return
+	}
+
+	var payloadBytes []byte
+	var err error
+	if payload != nil {
+		payloadBytes, err = json.Marshal(payload)
+		if err != nil {
+			log.Printf("failed to marshal notification payload: %v", err)
+			return
+		}
+	}
+
+	notif, err := m.DB.CreateNotification(userID, notifType, payloadBytes)
+	if err != nil {
+		log.Printf("failed to create notification: %v", err)
+		return
+	}
+
+	m.PushNotification(notif)
 }

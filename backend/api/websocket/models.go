@@ -23,6 +23,10 @@ const (
 	EventSendMessage = "send_message"
 	// EventReceiveMessage is a response to send_message
 	EventReceiveMessage = "receive_message"
+	// EventSendGroupMessage handles group chat
+	EventSendGroupMessage = "send_group_message"
+	// EventReceiveGroupMessage is the broadcast for group chat
+	EventReceiveGroupMessage = "receive_group_message"
 	// EventChangeRoom is event when switching rooms
 	EventChangeRoom = "change_room"
 	// EventUserStatusUpdate is the new event for online/offline status changes
@@ -33,6 +37,8 @@ const (
 	EventNewTyping = "new_typing"
 	// EventError is for error messages
 	EventError = "error"
+	// EventNotification is for notification payloads
+	EventNotification = "notification"
 )
 
 // User Status Constants
@@ -51,6 +57,12 @@ type SendMessageEvent struct {
 	SessionToken string `json:"session_token"` // Session token for validation
 }
 
+type SendGroupMessageEvent struct {
+	Message      string `json:"message"`
+	GroupID      int    `json:"group_id"`
+	SessionToken string `json:"session_token"`
+}
+
 // SendTypingEvent is the payload sent in the send_typing event
 type SendTypingEvent struct {
 	ReceiverID   int    `json:"receiver_id"`   // Target user
@@ -64,6 +76,13 @@ type ReceiveMessageEvent struct {
 	SenderID   int    `json:"sender_id"`   // Who sent the message
 	ReceiverID int    `json:"receiver_id"` // Who received the message
 	SentAt     string `json:"sent_at"`     // Server adds timestamp
+}
+
+type ReceiveGroupMessageEvent struct {
+	Message  string `json:"message"`
+	SenderID int    `json:"sender_id"`
+	GroupID  int    `json:"group_id"`
+	SentAt   string `json:"sent_at"`
 }
 
 // NewTypingEvent is returned when responding to send_typing
@@ -88,4 +107,13 @@ type UserStatusInfo struct {
 type UserStatusUpdate struct {
 	OnlineUsers    []UserStatusInfo `json:"online_users"`     // Full user objects for online users
 	OfflineUserIDs []int            `json:"offline_user_ids"` // Just IDs for offline users
+}
+
+// NotificationEvent is the payload for notification broadcasts
+type NotificationEvent struct {
+	ID        int             `json:"id"`
+	Type      string          `json:"type"`
+	Payload   json.RawMessage `json:"payload"`
+	IsRead    bool            `json:"is_read"`
+	CreatedAt string          `json:"created_at"`
 }

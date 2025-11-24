@@ -15,3 +15,4 @@ DROP TABLE IF EXISTS post_comment;
 DROP TABLE IF EXISTS post_user_can_view;
 DROP TABLE IF EXISTS post;
 DROP TABLE IF EXISTS user;
+DROP TABLE IF EXISTS notifications;

@@ -159,3 +159,13 @@ CREATE TABLE IF NOT EXISTS event_has_user (
     FOREIGN KEY (event_id) REFERENCES event(id),
     FOREIGN KEY (user_id) REFERENCES user(id)
 );
+
+CREATE TABLE IF NOT EXISTS notifications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    type TEXT NOT NULL,
+    payload TEXT,
+    is_read BOOLEAN NOT NULL DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES user(id)
+);

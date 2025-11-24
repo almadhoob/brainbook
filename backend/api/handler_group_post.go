@@ -9,22 +9,9 @@ import (
 )
 
 func (app *Application) groupPosts(w http.ResponseWriter, r *http.Request) {
+	group := contextGetGroup(r)
 
-	groupIDStr := r.PathValue("group_id")
-	groupID, err := parseStringID(groupIDStr)
-	if err != nil || groupID <= 0 {
-		app.badRequest(w, r, err)
-		return
-	}
-
-	// Check if group exists
-	_, err = app.DB.GroupByID(groupID)
-	if err != nil {
-		app.notFound(w, r)
-		return
-	}
-
-	posts, err := app.DB.GetGroupPosts(groupID)
+	posts, err := app.DB.GetGroupPosts(group.ID)
 	if err != nil {
 		app.serverError(w, r, err)
 		return
@@ -64,21 +51,9 @@ func (app *Application) groupPostCreate(w http.ResponseWriter, r *http.Request) 
 	ctx := contextGetAuthenticatedUser(r)
 	userID := ctx.ID
 
-	groupIDStr := r.PathValue("group_id")
-	groupID, err := parseStringID(groupIDStr)
-	if err != nil || groupID <= 0 {
-		app.badRequest(w, r, err)
-		return
-	}
+	group := contextGetGroup(r)
 
-	// Check if group exists
-	_, err = app.DB.GroupByID(groupID)
-	if err != nil {
-		app.notFound(w, r)
-		return
-	}
-
-	isMember, err := app.DB.IsGroupMember(userID, groupID)
+	isMember, err := app.DB.IsGroupMember(userID, group.ID)
 	if err != nil {
 		app.serverError(w, r, err)
 		return
@@ -90,7 +65,7 @@ func (app *Application) groupPostCreate(w http.ResponseWriter, r *http.Request) 
 	}
 
 	//content string, image []byte, currentDateTime string, userID int, groupID int
-	postID, err := app.DB.InsertGroupPost(input.Content, input.File, t.CurrentTime(), userID, groupID)
+	postID, err := app.DB.InsertGroupPost(input.Content, input.File, t.CurrentTime(), userID, group.ID)
 	if err != nil {
 		app.serverError(w, r, err)
 		return

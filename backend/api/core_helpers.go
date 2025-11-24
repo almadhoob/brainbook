@@ -42,3 +42,14 @@ func parseStringID(stringID string) (int, error) {
 
 	return ID, nil
 }
+
+func parseQueryInt(r *http.Request, key string, fallback int) int {
+	value := strings.TrimSpace(r.URL.Query().Get(key))
+	if value == "" {
+		return fallback
+	}
+	if parsed, err := strconv.Atoi(value); err == nil {
+		return parsed
+	}
+	return fallback
+}

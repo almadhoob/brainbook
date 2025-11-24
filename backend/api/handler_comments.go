@@ -1,17 +1,22 @@
 package api
 
 import (
-	"brainbook-api/internal/response"
 	"fmt"
 	"net/http"
+
+	"brainbook-api/internal/response"
 )
 
 func (app *Application) getPostComments(w http.ResponseWriter, r *http.Request) {
-	pathPostID := r.PathValue("id")
+	postIDStr := r.PathValue("post_id")
+	if postIDStr == "" {
+		app.badRequest(w, r, fmt.Errorf("post ID is required"))
+		return
+	}
 
-	postID, err := parseStringID(pathPostID)
+	postID, err := parseStringID(postIDStr)
 	if err != nil {
-		app.badRequest(w, r, fmt.Errorf("Invalid comment ID: %s", pathPostID))
+		app.badRequest(w, r, fmt.Errorf("Invalid post ID: %s", postIDStr))
 		return
 	}
 

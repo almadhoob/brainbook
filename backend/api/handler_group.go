@@ -52,29 +52,16 @@ func (app *Application) userGroups(w http.ResponseWriter, r *http.Request) {
 
 }
 
-
 func (app *Application) groupDetails(w http.ResponseWriter, r *http.Request) {
-	groupIDStr := r.PathValue("group_id")
-	groupID, err := parseStringID(groupIDStr)
-	if err != nil || groupID <= 0 {
-		app.badRequest(w, r, err)
-		return
-	}
-
-	group,  err := app.DB.GroupByID(groupID)
-	if err != nil {
-		app.notFound(w, r)
-		return
-	}
+	group := contextGetGroup(r)
 
 	responseData := map[string]interface{}{
 		"group": group,
 	}
 
-	err = response.JSON(w, http.StatusOK, responseData)
+	err := response.JSON(w, http.StatusOK, responseData)
 	if err != nil {
 		app.serverError(w, r, err)
 		return
 	}
 }
-

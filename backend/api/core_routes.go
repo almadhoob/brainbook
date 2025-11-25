@@ -63,6 +63,6 @@ func (app *Application) routes() http.Handler {
 	// Mount protected routes (authentication required)
 	finalMux.Handle("/protected/", http.StripPrefix("/protected", app.authenticate(app.authorize(protectedMux))))
 
-	// Apply method validation to the entire final mux
-	return app.logAccess(app.recoverPanic(registry.ValidateMethod()(finalMux)))
+	// Apply CORS, method validation, logging, and panic recovery to the entire final mux
+	return app.cors(app.logAccess(app.recoverPanic(registry.ValidateMethod()(finalMux))))
 }

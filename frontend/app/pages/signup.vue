@@ -87,8 +87,8 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
       body,
       credentials: 'include'
     })
-    toast.add({ title: 'Account created', description: 'You can now log in.' })
-    await navigateTo('/login')
+    toast.add({ title: 'Account created', description: 'Welcome!' })
+    await navigateTo('/')
   } catch (err: unknown) {
     const errorMsg = (err as { data?: { Error?: string } })?.data?.Error || 'Registration error'
     toast.add({ title: 'Signup failed', description: errorMsg, color: 'error' })

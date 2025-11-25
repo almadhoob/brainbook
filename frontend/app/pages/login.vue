@@ -54,7 +54,7 @@ type Schema = z.output<typeof schema>
 async function onSubmit(payload: FormSubmitEvent<Schema>) {
   // Prepare login payload
   const body = {
-    email: payload.data.email,
+    identifier: payload.data.email,
     password: payload.data.password
   }
   try {
@@ -69,7 +69,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
       credentials: 'include'
     })
     toast.add({ title: 'Login successful', description: 'Welcome back!' })
-    await navigateTo('/dashboard')
+    await navigateTo('/')
   } catch (err: unknown) {
     let errorMsg = 'Authentication error'
     type ErrorResponse = { data?: { Error?: string } }

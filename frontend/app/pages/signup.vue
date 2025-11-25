@@ -13,22 +13,32 @@ useSeoMeta({
 
 const toast = useToast()
 
-const fields = [{
-  name: 'name',
-  type: 'text' as const,
-  label: 'Name',
-  placeholder: 'Enter your name'
-}, {
-  name: 'email',
-  type: 'text' as const,
-  label: 'Email',
-  placeholder: 'Enter your email'
-}, {
-  name: 'password',
-  label: 'Password',
-  type: 'password' as const,
-  placeholder: 'Enter your password'
-}]
+const fields = [
+  {
+    name: 'name',
+    type: 'text' as const,
+    label: 'Name',
+    placeholder: 'Enter your name'
+  },
+  {
+    name: 'email',
+    type: 'text' as const,
+    label: 'Email',
+    placeholder: 'Enter your email'
+  },
+  {
+    name: 'password',
+    label: 'Password',
+    type: 'password' as const,
+    placeholder: 'Enter your password'
+  },
+  {
+    name: 'dob',
+    type: 'text' as const,
+    label: 'Date of Birth',
+    placeholder: 'YYYY-MM-DD'
+  }
+]
 
 const providers = [{
   label: 'Google',
@@ -47,13 +57,42 @@ const providers = [{
 const schema = z.object({
   name: z.string().min(1, 'Name is required'),
   email: z.string().email('Invalid email'),
-  password: z.string().min(8, 'Must be at least 8 characters')
+  password: z.string().min(8, 'Must be at least 8 characters'),
+  dob: z.string().min(1, 'Date of birth is required')
 })
 
 type Schema = z.output<typeof schema>
 
-function onSubmit(payload: FormSubmitEvent<Schema>) {
-  console.log('Submitted', payload)
+async function onSubmit(payload: FormSubmitEvent<Schema>) {
+  // Prepare registration payload
+  // Format dob as RFC3339 (YYYY-MM-DDT00:00:00Z)
+  let dobRFC3339 = payload.data.dob
+  if (/^\d{4}-\d{2}-\d{2}$/.test(payload.data.dob)) {
+    dobRFC3339 = payload.data.dob + 'T00:00:00Z'
+  }
+  const body = {
+    email: payload.data.email,
+    password: payload.data.password,
+    f_name: payload.data.name.split(' ')[0] || '',
+    l_name: payload.data.name.split(' ').slice(1).join(' ') || '',
+    dob: dobRFC3339
+    // avatar, nickname, about_me can be added here
+  }
+  try {
+    await $fetch('/v1/register', {
+      method: 'POST',
+      baseURL: typeof (useRuntimeConfig() as { public: { apiBase?: string } }).public.apiBase === 'string'
+        ? (useRuntimeConfig() as { public: { apiBase?: string } }).public.apiBase
+        : 'http://localhost:8080',
+      body,
+      credentials: 'include'
+    })
+    toast.add({ title: 'Account created', description: 'You can now log in.' })
+    await navigateTo('/login')
+  } catch (err: unknown) {
+    const errorMsg = (err as { data?: { Error?: string } })?.data?.Error || 'Registration error'
+    toast.add({ title: 'Signup failed', description: errorMsg, color: 'error' })
+  }
 }
 </script>
 

@@ -51,8 +51,36 @@ const schema = z.object({
 
 type Schema = z.output<typeof schema>
 
-function onSubmit(payload: FormSubmitEvent<Schema>) {
-  console.log('Submitted', payload)
+async function onSubmit(payload: FormSubmitEvent<Schema>) {
+  // Prepare login payload
+  const body = {
+    email: payload.data.email,
+    password: payload.data.password
+  }
+  try {
+    const publicConfig = useRuntimeConfig().public as { apiBase?: string }
+    const apiBase = publicConfig.apiBase && typeof publicConfig.apiBase === 'string' && publicConfig.apiBase.length > 0
+      ? publicConfig.apiBase
+      : 'http://localhost:8080'
+    await $fetch('/v1/login', {
+      method: 'POST',
+      baseURL: apiBase,
+      body,
+      credentials: 'include'
+    })
+    toast.add({ title: 'Login successful', description: 'Welcome back!' })
+    await navigateTo('/dashboard')
+  } catch (err: unknown) {
+    let errorMsg = 'Authentication error'
+    type ErrorResponse = { data?: { Error?: string } }
+    if (typeof err === 'object' && err !== null && 'data' in err) {
+      const e = err as ErrorResponse
+      if (e.data && typeof e.data.Error === 'string') {
+        errorMsg = e.data.Error
+      }
+    }
+    toast.add({ title: 'Login failed', description: errorMsg, color: 'error' })
+  }
 }
 </script>
 

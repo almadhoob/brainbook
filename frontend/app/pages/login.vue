@@ -68,6 +68,25 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
       body,
       credentials: 'include'
     })
+    // Fetch current user profile to get user_id
+    let userId: string | undefined
+    try {
+      // Try to get user list and find the matching email
+      const userList = await $fetch<{ users: Array<{ user_id: string, email: string }> }>(
+        '/protected/v1/user-list', {
+          method: 'GET',
+          baseURL: apiBase,
+          credentials: 'include'
+        }
+      )
+      const user = userList.users.find(u => u.email === payload.data.email)
+      if (user) {
+        userId = user.user_id
+        localStorage.setItem('user_id', userId)
+      }
+    } catch {
+      // fallback: do not set user_id
+    }
     toast.add({ title: 'Login successful', description: 'Welcome back!' })
     await navigateTo('/')
   } catch (err: unknown) {

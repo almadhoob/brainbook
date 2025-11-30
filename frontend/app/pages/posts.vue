@@ -87,6 +87,10 @@ function formatTimestamp(timestamp?: string | null) {
   if (Number.isNaN(parsed.getTime())) return timestamp
   return parsed.toLocaleString()
 }
+
+function handleRefreshClick(_: MouseEvent) {
+  return refresh()
+}
 </script>
 
 <template>
@@ -103,7 +107,7 @@ function formatTimestamp(timestamp?: string | null) {
             variant="ghost"
             icon="i-lucide-refresh-cw"
             :loading="isRefreshing"
-            @click="refresh"
+            @click="handleRefreshClick"
           >
             Refresh
           </UButton>

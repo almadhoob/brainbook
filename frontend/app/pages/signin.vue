@@ -7,8 +7,8 @@ definePageMeta({
 })
 
 useSeoMeta({
-  title: 'Login',
-  description: 'Login to your account to continue'
+  title: 'Sign in',
+  description: 'Sign in to your account to continue'
 })
 
 const toast = useToast()
@@ -52,7 +52,7 @@ const schema = z.object({
 type Schema = z.output<typeof schema>
 
 async function onSubmit(payload: FormSubmitEvent<Schema>) {
-  // Prepare login payload
+  // Prepare sign-in payload
   const body = {
     identifier: payload.data.email,
     password: payload.data.password
@@ -87,7 +87,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
     } catch {
       // fallback: do not set user_id
     }
-    toast.add({ title: 'Login successful', description: 'Welcome back!' })
+    toast.add({ title: 'Sign-in successful', description: 'Welcome back!' })
     await navigateTo('/')
   } catch (err: unknown) {
     let errorMsg = 'Authentication error'
@@ -98,7 +98,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
         errorMsg = e.data.Error
       }
     }
-    toast.add({ title: 'Login failed', description: errorMsg, color: 'error' })
+    toast.add({ title: 'Sign-in failed', description: errorMsg, color: 'error' })
   }
 }
 </script>

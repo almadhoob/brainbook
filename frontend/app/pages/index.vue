@@ -1,25 +1,17 @@
 <script setup lang="ts">
-import { sub } from 'date-fns'
 import type { DropdownMenuItem } from '@nuxt/ui'
-import type { Period, Range } from '~/types'
 
 const { isNotificationsSlideoverOpen } = useDashboard()
 
 const items = [[{
-  label: 'New mail',
+  label: 'New message',
   icon: 'i-lucide-send',
-  to: '/inbox'
+  to: '/messages'
 }, {
-  label: 'New customer',
+  label: 'New user',
   icon: 'i-lucide-user-plus',
   to: '/users'
 }]] satisfies DropdownMenuItem[][]
-
-const range = shallowRef<Range>({
-  start: sub(new Date(), { days: 14 }),
-  end: new Date()
-})
-const period = ref<Period>('daily')
 </script>
 
 <template>
@@ -52,8 +44,11 @@ const period = ref<Period>('daily')
     </template>
 
     <template #body>
-      <HomeStats :period="period" :range="range" />
-      <HomeSales :period="period" :range="range" />
+      <div class="p-6">
+        <h1 class="text-2xl font-semibold mb-4">
+          Welcome to the BrainBook
+        </h1>
+      </div>
     </template>
   </UDashboardPanel>
 </template>

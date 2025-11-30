@@ -115,7 +115,6 @@ func (app *Application) authenticate(next http.Handler) http.Handler {
 			}
 
 			user, found, err := app.DB.UserBySession(cookie.Value)
-			fmt.Printf("DEBUG: Session lookup - cookie value: %s, found: %v, err: %v\n", cookie.Value, found, err)
 			if err != nil {
 				app.serverError(w, r, err)
 				return
@@ -128,7 +127,6 @@ func (app *Application) authenticate(next http.Handler) http.Handler {
 
 			// Adds users with valid sessions to the context
 			r = contextSetAuthenticatedUser(r, user)
-			fmt.Printf("DEBUG: Authenticate - user added to context: %v\n", contextGetAuthenticatedUser(r) != nil)
 
 		} else {
 			// Potential guest logic can be added here
@@ -143,7 +141,6 @@ func (app *Application) authenticate(next http.Handler) http.Handler {
 func (app *Application) authorize(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authenticatedUser := contextGetAuthenticatedUser(r)
-		fmt.Printf("DEBUG: Authorize - user in context: %v\n", authenticatedUser != nil)
 
 		if authenticatedUser == nil {
 			app.authenticationRequired(w, r)

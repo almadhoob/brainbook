@@ -132,7 +132,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-  /protected/v1/profiles/user/{id}:
+  /protected/v1/profile/user/{id}:
     get:
       tags:
         - Profile
@@ -176,40 +176,40 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-  /protected/v1/user/{id}:
-    patch:
+  /protected/v1/profile/update:
+    post:
       tags:
         - Profile
-      summary: Update profile visibility
+      summary: Update user profile
       description: |
-        Updates the profile visibility settings. Only available when the authenticated 
-        user is updating their own profile (is_self is TRUE).
-      operationId: updateProfileVisibility
+        Updates the authenticated user's profile fields (nickname, bio, avatar, is_public). Only provided fields are updated. Returns 204 if nothing to update.
+      operationId: updateProfile
       security:
         - sessionAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          description: User ID (must match authenticated user)
-          schema:
-            type: integer
-            format: int64
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UpdateProfileVisibilityRequest'
+              type: object
+              properties:
+                nickname:
+                  type: string
+                  maxLength: 50
+                bio:
+                  type: string
+                  maxLength: 500
+                avatar:
+                  type: string
+                  format: byte
+                is_public:
+                  type: boolean
+              additionalProperties: false
       responses:
-        '200':
-          description: Profile visibility updated successfully
+        '204':
+          description: Profile updated successfully
         '400':
-          description: Invalid user ID
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          description: Invalid request
         '401':
           $ref: '#/components/responses/UnauthorizedError'
         '500':
@@ -285,76 +285,78 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-  /protected/v1/user/{id}/follow:
+  /protected/v1/users/{user_id}/follow:
     post:
       tags:
         - Follow
-      summary: Follow a user
+      summary: Send follow request
       description: |
-        Creates a follow request. For public profiles, the status is automatically set 
-        to "accepted". For private profiles, the status is set to "pending" and requires 
-        manual approval.
-      operationId: createFollowRequest
+        Sends a follow request to another user. For public profiles, status is automatically accepted. For private profiles, status is pending.
+      operationId: sendFollowRequest
       security:
         - sessionAuth: []
       parameters:
-        - name: id
+        - name: user_id
           in: path
           required: true
-          description: Target user ID to follow
           schema:
             type: integer
-            format: int64
       responses:
-        '200':
-          description: Follow request created successfully
-        '400':
-          description: Invalid user ID
+        '201':
+          description: Follow request sent
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                type: object
+                properties:
+                  status:
+                    type: string
+        '400':
+          description: Invalid user ID
         '401':
           $ref: '#/components/responses/UnauthorizedError'
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-  /protected/v1/follow/user/{id}:
-    patch:
+  /protected/v1/follow-requests/{request_id}:
+    post:
       tags:
         - Follow
-      summary: Accept/reject follow request or unfollow
-      description: |
-        Updates a follow request status. Can be used to:
-        - Accept a pending follow request
-        - Reject/deny a follow request (status changes to "nonfollower")
-        - Unfollow a user (only possible if already following)
-      operationId: updateFollowRequest
+      summary: Respond to follow request
+      description: Accept or decline a follow request.
+      operationId: respondFollowRequest
       security:
         - sessionAuth: []
       parameters:
-        - name: id
+        - name: request_id
           in: path
           required: true
-          description: User ID associated with the follow request
           schema:
             type: integer
-            format: int64
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UpdateFollowRequestRequest'
+              type: object
+              properties:
+                action:
+                  type: string
+                  enum: [accept, decline]
+              required:
+                - action
       responses:
         '200':
-          description: Follow request updated successfully
-        '400':
-          description: Invalid request
+          description: Follow request response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                type: object
+                properties:
+                  status:
+                    type: string
+        '400':
+          description: Invalid request
         '401':
           $ref: '#/components/responses/UnauthorizedError'
         '500':
@@ -380,17 +382,12 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
         '500':
           $ref: '#/components/responses/InternalServerError'
-
-  /protected/v1/create-post:
     post:
       tags:
         - Posts
       summary: Create a new post
       description: |
-        Creates a new post. Posts can include images or GIFs and have privacy settings:
-        - Public: All users can see
-        - Almost Private: Only followers can see
-        - Private: Only selected followers can see
+        Creates a new post. Posts can include images or GIFs. Content must not exceed 500 characters.
       operationId: createPost
       security:
         - sessionAuth: []
@@ -399,31 +396,52 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreatePostRequest'
+              type: object
+              properties:
+                content:
+                  type: string
+                  maxLength: 500
+                file:
+                  type: string
+                  format: byte
+              required:
+                - content
       responses:
         '201':
           description: Post created successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Post'
+                type: object
+                properties:
+                  post_id:
+                    type: integer
+                  user_full_name:
+                    type: string
+                  user_avatar:
+                    type: string
+                  content:
+                    type: string
+                  file:
+                    type: string
+                  created_at:
+                    type: string
+                    format: date-time
+        '400':
+          description: Invalid request
         '401':
           $ref: '#/components/responses/UnauthorizedError'
         '422':
           description: Validation error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ValidationErrorResponse'
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-  /protected/v1/create-comment:
+  /protected/v1/comments:
     post:
       tags:
         - Comments
       summary: Create a new comment
-      description: Creates a new comment on a post. Comments can include images or GIFs.
+      description: Creates a new comment on a post. Comments can include images or GIFs. Content must not exceed 500 characters.
       operationId: createComment
       security:
         - sessionAuth: []
@@ -432,22 +450,46 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateCommentRequest'
+              type: object
+              properties:
+                post_id:
+                  type: integer
+                content:
+                  type: string
+                  maxLength: 500
+                file:
+                  type: string
+                  format: byte
+              required:
+                - post_id
+                - content
       responses:
         '201':
           description: Comment created successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Comment'
+                type: object
+                properties:
+                  comment_id:
+                    type: integer
+                  user_full_name:
+                    type: string
+                  user_avatar:
+                    type: string
+                  content:
+                    type: string
+                  file:
+                    type: string
+                  created_at:
+                    type: string
+                    format: date-time
+        '400':
+          description: Invalid request
         '401':
           $ref: '#/components/responses/UnauthorizedError'
         '422':
           description: Validation error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ValidationErrorResponse'
         '500':
           $ref: '#/components/responses/InternalServerError'
 

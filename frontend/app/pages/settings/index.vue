@@ -60,6 +60,7 @@ function onFileClick() {
       variant="naked"
       orientation="horizontal"
       class="mb-4"
+      aria-describedby="undefined"
     >
       <UButton
         form="settings"

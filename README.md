@@ -29,7 +29,7 @@
 
 ## 🌟 Overview
 
-BrainBook is a feature-rich social networking platform designed specifically for knowledge sharing between researchers and developers. It provides a comprehensive suite of tools for collaboration, including user profiles, posts, groups, real-time messaging, and notifications.
+BrainBook is a social networking platform to share knowledge for researchers and developers. It provides a comprehensive suite of tools for collaboration, including: user profiles, posts, groups, real-time messaging, and notifications.
 
 ### Key Highlights
 
@@ -49,6 +49,7 @@ BrainBook is a feature-rich social networking platform designed specifically for
 Complete user registration and login system with persistent sessions:
 
 - **Registration Requirements**:
+
   - Email (mandatory)
   - Password (mandatory, securely hashed)
   - First Name & Last Name (mandatory)
@@ -136,9 +137,9 @@ Comprehensive notification system for important events:
 
 ### Frontend
 
-- **Node.js**: 22.21.0
-- **Package Manager**: PNPM 10.19.0
-- **Framework**: Nuxt 4.2.0 (Vue.js v3)
+- **Node.js**: 22.21
+- **Package Manager**: PNPM 10.24
+- **Framework**: Nuxt 4.2 (Vue.js v3)
 - **UI Library**: Nuxt UI Pro
 - **Styling**: TailwindCSS (via Nuxt UI)
 - **Utilities**: VueUse, date-fns
@@ -165,42 +166,6 @@ As per project requirements, only the following external Go packages are used:
 
 ---
 
-## 🗄️ Database Schema
-
-<div align="center">
-  <img src="model.png" alt="Database Schema" width="800"/>
-</div>
-
-### Core Tables
-
-#### Users & Authentication
-- **user**: User profiles and account information
-- **session**: Active user sessions with tokens
-- **follow_request**: Follow relationships and requests
-
-#### Content
-- **post**: User posts with privacy settings
-- **post_user_can_view**: Private post visibility control
-- **post_comment**: Comments on posts
-
-#### Groups
-- **group**: Group information
-- **group_member**: Group membership
-- **group_join_request**: Requests to join groups
-- **group_post**: Posts within groups
-- **group_post_comment**: Comments on group posts
-- **group_message**: Group chat messages
-
-#### Events
-- **event**: Group events
-- **event_has_user**: Event RSVP tracking
-
-#### Messaging
-- **conversation**: Private conversations between users
-- **conversation_message**: Private messages
-
----
-
 ## 🚀 Getting Started
 
 ### Prerequisites
@@ -214,12 +179,14 @@ Ensure you have the following installed:
 ### Installation
 
 1. **Clone the repository**
+
    ```bash
    git clone https://github.com/yourusername/social-network.git
    cd social-network
    ```
 
 2. **Backend Setup**
+
    ```bash
    cd backend
 
@@ -233,6 +200,7 @@ Ensure you have the following installed:
    The backend server will start on `http://localhost:8080`
 
 3. **Frontend Setup**
+
    ```bash
    cd frontend
 
@@ -265,6 +233,7 @@ Configure API endpoint in `nuxt.config.ts` if needed.
 ### Building for Production
 
 **Backend:**
+
 ```bash
 cd backend
 go build -o brainbook-api
@@ -272,11 +241,58 @@ go build -o brainbook-api
 ```
 
 **Frontend:**
+
 ```bash
 cd frontend
 pnpm build
 pnpm preview
 ```
+
+### Injecting Dummy Data
+
+To populate the database with mock data for development/testing, use the provided `dummy.sql` file:
+
+1. Make sure your SQLite database (`db.sqlite`) is initialized.
+2. Inject the dummy data:
+
+```bash
+sqlite3 db.sqlite < dummy.sql
+```
+
+This will insert sample users, posts, groups, comments, and relationships themed for knowledge sharing among researchers and developers. All user passwords are set to `reboot01@BH` (bcrypt-hashed).
+
+---
+
+## 🗄️ Database Schema
+
+### Database Details
+
+The backend uses SQLite 3, with schema managed by migration files in `backend/assets/migrations/`. The main migration file is `000001_initalize_schema_migrations.up.sql`, which must match the Golang code in `internal/database/`.
+
+#### Privacy & Visibility
+
+- User profile privacy: `is_public` boolean field
+- Post privacy: `visibility` field (`public`, `private`, `limited`)
+
+#### Main Tables
+
+- **user**: User profiles and account information (fields: id, f_name, l_name, email, hashed_password, dob, avatar, nickname, bio, is_public)
+- **session**: Active user sessions (user_id, session_token, created_at)
+- **follow_request**: Follow relationships and requests (requester_id, target_id, status)
+- **post**: User posts (user_id, content, file, visibility, created_at)
+- **post_user_can_view**: Private post visibility control (post_id, user_id)
+- **post_comment**: Comments on posts (post_id, user_id, content, file, created_at)
+- **groups**: Group information (id, owner_id, title, description, created_at)
+- **group_members**: Group membership (group_id, user_id, role, joined_at)
+- **group_join_requests**: Requests to join groups (group_id, requester_id, target_id, status, created_at)
+- **group_posts**: Posts within groups (user_id, group_id, content, file, created_at)
+- **group_post_comments**: Comments on group posts (group_post_id, user_id, content, file, created_at)
+- **group_messages**: Group chat messages (group_id, sender_id, content, created_at)
+- **event**: Group events (group_id, user_id, title, description, time)
+- **event_has_user**: Event RSVP tracking (event_id, user_id, interested)
+- **conversation**: Private conversations (user1_id, user2_id, last_message_time, created_at)
+- **conversation_message**: Private messages (conversation_id, sender_id, content, created_at)
+- **notifications**: Notifications (user_id, type, payload, is_read, created_at)
 
 ---
 
@@ -284,20 +300,36 @@ pnpm preview
 
 Complete API documentation is available in the OpenAPI 3.1 specification file: [`openapi.yaml`](openapi.yaml)
 
-### API Structure
+### API Endpoints
 
-- **Public Routes** (`/v1/*`): No authentication required
-  - `POST /v1/register` - User registration
-  - `POST /v1/login` - User login
+**Public Routes** (`/v1/*`): No authentication required
 
-- **Protected Routes** (`/protected/v1/*`): Authentication required
-  - **Profiles**: `GET /protected/v1/profiles/user/{id}`
-  - **Followers**: `GET/POST /protected/v1/user/{id}/followers`
-  - **Posts**: `GET/POST /protected/v1/posts`
-  - **Comments**: `POST /protected/v1/comments`
-  - **Groups**: `GET/POST /protected/v1/groups/*`
-  - **Messaging**: `GET /protected/v1/private-messages/{id}`
-  - **WebSocket**: `GET /protected/ws`
+- `POST /v1/register` — User registration
+- `POST /v1/login` — User login
+
+**Protected Routes** (`/protected/v1/*`): Authentication required (session cookie)
+
+- `GET /protected/v1/profile/user/{id}` — Get user profile
+- `POST /protected/v1/profile/update` — Update own profile
+- `GET /protected/v1/user/{id}/followers` — Get followers
+- `GET /protected/v1/user/{id}/following` — Get following
+- `POST /protected/v1/users/{user_id}/follow` — Send follow request
+- `POST /protected/v1/follow-requests/{request_id}` — Respond to follow request
+- `GET /protected/v1/posts` — Get posts
+- `POST /protected/v1/posts` — Create post
+- `POST /protected/v1/comments` — Create comment
+- `GET /protected/v1/user-list` — Get user list (for messaging)
+- `GET /protected/v1/private-messages/{id}` — Get conversation messages
+- `GET /protected/v1/group-list` — Get group list
+- `GET /protected/v1/groups/{id}/messages` — Get group messages
+- `POST /protected/v1/groups/{id}/messages` — Create group message
+- `GET /protected/v1/groups/{id}/posts` — Get group posts
+- `POST /protected/v1/groups/{id}/posts` — Create group post
+- `POST /protected/v1/groups/{id}/events` — Create group event
+- `POST /protected/v1/groups/{id}/join` — Request to join group
+- `PATCH /protected/v1/groups/{id}/join-requests/{userId}` — Accept/reject group join request
+- `DELETE /protected/v1/groups/{id}/leave` — Leave group
+- `GET /protected/ws` — WebSocket connection for real-time messaging and notifications
 
 ### Authentication
 
@@ -307,48 +339,6 @@ The API uses session-based authentication with HTTP-only cookies:
 2. Receive `session_token` cookie
 3. Include cookie in subsequent requests
 4. Logout via `POST /protected/v1/logout`
-
----
-
-## 📁 Project Structure
-
-```
-social-network/
-├── backend/                    # Go backend
-│   ├── api/                   # API handlers and routing
-│   │   ├── websocket/        # WebSocket implementation
-│   │   ├── core_*.go         # Core server components
-│   │   └── handler_*.go      # Route handlers
-│   ├── assets/               # Embedded assets
-│   │   └── migrations/       # SQL migration files
-│   ├── internal/             # Internal packages
-│   │   ├── database/         # Database layer
-│   │   ├── security/         # Security utilities
-│   │   ├── cookie/           # Cookie management
-│   │   ├── validator/        # Input validation
-│   │   └── ...              # Other utilities
-│   ├── main.go               # Application entry point
-│   ├── go.mod                # Go dependencies
-│   └── db.sqlite            # SQLite database (generated)
-│
-├── frontend/                  # Nuxt/Vue frontend
-│   ├── app/                  # Application code
-│   │   ├── components/       # Vue components
-│   │   ├── pages/           # Page components
-│   │   ├── layouts/         # Layout components
-│   │   ├── composables/     # Vue composables
-│   │   └── assets/          # Static assets
-│   ├── nuxt.config.ts       # Nuxt configuration
-│   ├── package.json         # Node dependencies
-│   └── tsconfig.json        # TypeScript config
-│
-├── openapi.yaml              # API documentation
-├── requirements.md           # Project requirements
-├── model.png                 # Database schema diagram
-├── logo.png                  # Project logo
-├── LICENSE                   # MIT License
-└── README.md                # This file
-```
 
 ---
 

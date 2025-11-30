@@ -3,11 +3,11 @@
 
 -- Users
 INSERT INTO user (f_name, l_name, email, hashed_password, dob, avatar, nickname, bio, is_public) VALUES
-('Alice', 'Smith', 'alice@university.edu', '$2a$10$Q9QwQwQwQwQwQwQwQwQwQuOQwQwQwQwQwQwQwQwQwQwQwQwQw', '1985-04-12', NULL, 'alice_s', 'AI researcher and educator.', 1),
-('Bob', 'Johnson', 'bob@devhub.com', '$2a$10$Q9QwQwQwQwQwQwQwQwQwQuOQwQwQwQwQwQwQwQwQwQwQwQwQw', '1990-09-23', NULL, 'bobby', 'Full-stack developer, open source enthusiast.', 1),
-('Carol', 'Lee', 'carol@datascience.org', '$2a$10$Q9QwQwQwQwQwQwQwQwQwQuOQwQwQwQwQwQwQwQwQwQwQwQwQw', '1988-02-17', NULL, 'carol_lee', 'Data scientist, loves sharing notebooks.', 0),
-('David', 'Nguyen', 'david@researchlab.net', '$2a$10$Q9QwQwQwQwQwQwQwQwQwQuOQwQwQwQwQwQwQwQwQwQwQwQwQw', '1982-12-05', NULL, 'dnguyen', 'ML researcher, conference speaker.', 1),
-('Eve', 'Martins', 'eve@devtalks.com', '$2a$10$Q9QwQwQwQwQwQwQwQwQwQuOQwQwQwQwQwQwQwQwQwQwQwQwQw', '1995-07-30', NULL, 'evem', 'Frontend developer, loves Vue & Nuxt.', 1);
+('Alice', 'Smith', 'alice@university.edu', '$2a$12$cYXdjXCeDZAH9u8sP0AwaOu/LjugPF17.t8J7Js0Mndz7A609spjK', '1985-04-12', NULL, 'alice_s', 'AI researcher and educator.', 1),
+('Bob', 'Johnson', 'bob@devhub.com', '$2a$12$cYXdjXCeDZAH9u8sP0AwaOu/LjugPF17.t8J7Js0Mndz7A609spjK', '1990-09-23', NULL, 'bobby', 'Full-stack developer, open source enthusiast.', 1),
+('Carol', 'Lee', 'carol@datascience.org', '$2a$12$cYXdjXCeDZAH9u8sP0AwaOu/LjugPF17.t8J7Js0Mndz7A609spjK', '1988-02-17', NULL, 'carol_lee', 'Data scientist, loves sharing notebooks.', 0),
+('David', 'Nguyen', 'david@researchlab.net', '$2a$12$cYXdjXCeDZAH9u8sP0AwaOu/LjugPF17.t8J7Js0Mndz7A609spjK', '1982-12-05', NULL, 'dnguyen', 'ML researcher, conference speaker.', 1),
+('Eve', 'Martins', 'eve@devtalks.com', '$2a$12$cYXdjXCeDZAH9u8sP0AwaOu/LjugPF17.t8J7Js0Mndz7A609spjK', '1995-07-30', NULL, 'evem', 'Frontend developer, loves Vue & Nuxt.', 1);
 
 -- Sessions
 -- INSERT INTO session (user_id, session_token) VALUES

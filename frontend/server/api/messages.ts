@@ -1,6 +1,6 @@
 import { sub } from 'date-fns'
 
-const mails = [{
+const messages = [{
   id: 1,
   from: {
     name: 'Alex Smith',
@@ -653,7 +653,7 @@ Corporate Social Responsibility Team`,
     email: 'morgan.lopez@example.com'
   },
   subject: '🚗 Vehicle Maintenance Reminder: 30,000 Mile Service',
-  body: `Dear Valued Customer,
+  body: `Dear Valued User,
 
 Your vehicle is due for its 30,000-mile maintenance service.
 
@@ -687,5 +687,5 @@ Emergency: (555) 987-6544`,
 }]
 
 export default eventHandler(async () => {
-  return mails
+  return messages
 })

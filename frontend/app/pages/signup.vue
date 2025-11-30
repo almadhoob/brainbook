@@ -107,9 +107,9 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
   >
     <template #description>
       Already have an account? <ULink
-        to="/login"
+        to="/signin"
         class="text-primary font-medium"
-      >Login</ULink>.
+      >Sign in</ULink>.
     </template>
 
     <template #footer>

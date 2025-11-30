@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { breakpointsTailwind } from '@vueuse/core'
-import type { Mail } from '~/types'
+import type { Message } from '~/types'
 
 const tabItems = [{
   label: 'All',
@@ -12,34 +12,34 @@ const tabItems = [{
 }]
 const selectedTab = ref('all')
 
-const { data: mails } = await useFetch<Mail[]>('/api/mails', { default: () => [] })
+const { data: messages } = await useFetch<Message[]>('/api/messages', { default: () => [] })
 
-// Filter mails based on the selected tab
-const filteredMails = computed(() => {
+// Filter messages based on the selected tab
+const filteredMessages = computed(() => {
   if (selectedTab.value === 'unread') {
-    return mails.value.filter(mail => !!mail.unread)
+    return messages.value.filter(message => !!message.unread)
   }
 
-  return mails.value
+  return messages.value
 })
 
-const selectedMail = ref<Mail | null>()
+const selectedMessage = ref<Message | null>()
 
-const isMailPanelOpen = computed({
+const isMessagePanelOpen = computed({
   get() {
-    return !!selectedMail.value
+    return !!selectedMessage.value
   },
   set(value: boolean) {
     if (!value) {
-      selectedMail.value = null
+      selectedMessage.value = null
     }
   }
 })
 
-// Reset selected mail if it's not in the filtered mails
-watch(filteredMails, () => {
-  if (!filteredMails.value.find(mail => mail.id === selectedMail.value?.id)) {
-    selectedMail.value = null
+// Reset selected message if it's not in the filtered messages
+watch(filteredMessages, () => {
+  if (!filteredMessages.value.find(message => message.id === selectedMessage.value?.id)) {
+    selectedMessage.value = null
   }
 })
 
@@ -55,12 +55,12 @@ const isMobile = breakpoints.smaller('lg')
     :max-size="30"
     resizable
   >
-    <UDashboardNavbar title="Inbox">
+    <UDashboardNavbar title="Messages">
       <template #leading>
         <UDashboardSidebarCollapse />
       </template>
       <template #trailing>
-        <UBadge :label="filteredMails.length" variant="subtle" />
+        <UBadge :label="filteredMessages.length" variant="subtle" />
       </template>
 
       <template #right>
@@ -72,18 +72,18 @@ const isMobile = breakpoints.smaller('lg')
         />
       </template>
     </UDashboardNavbar>
-    <InboxList v-model="selectedMail" :mails="filteredMails" />
+    <InboxList v-model="selectedMessage" :messages="filteredMessages" />
   </UDashboardPanel>
 
-  <InboxMail v-if="selectedMail" :mail="selectedMail" @close="selectedMail = null" />
+  <InboxMail v-if="selectedMessage" :message="selectedMessage" @close="selectedMessage = null" />
   <div v-else class="hidden lg:flex flex-1 items-center justify-center">
     <UIcon name="i-lucide-inbox" class="size-32 text-dimmed" />
   </div>
 
   <ClientOnly>
-    <USlideover v-if="isMobile" v-model:open="isMailPanelOpen">
+    <USlideover v-if="isMobile" v-model:open="isMessagePanelOpen">
       <template #content>
-        <InboxMail v-if="selectedMail" :mail="selectedMail" @close="selectedMail = null" />
+        <InboxMail v-if="selectedMessage" :message="selectedMessage" @close="selectedMessage = null" />
       </template>
     </USlideover>
   </ClientOnly>

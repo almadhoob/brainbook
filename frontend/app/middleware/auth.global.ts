@@ -2,7 +2,7 @@ import { navigateTo } from '#app'
 
 export default defineNuxtRouteMiddleware(async (to, _from) => {
   // Allow public pages
-  const publicPages = ['/login', '/signup']
+  const publicPages = ['/signin', '/signup']
   if (publicPages.includes(to.path)) return
 
   // Check authentication by calling backend
@@ -20,11 +20,11 @@ export default defineNuxtRouteMiddleware(async (to, _from) => {
     })
     // If request succeeds, user is authenticated
   } catch (err: unknown) {
-    // If error is 401 or 403, redirect to login
+    // If error is 401 or 403, redirect to signin
     if (typeof err === 'object' && err !== null && 'status' in err) {
       const e = err as { status?: number }
       if (e.status === 401 || e.status === 403) {
-        return navigateTo('/login')
+        return navigateTo('/signin')
       }
     }
     // For other errors, allow navigation (or handle as needed)

@@ -1,183 +1,148 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import { upperFirst } from 'scule'
 import { getPaginationRowModel } from '@tanstack/table-core'
-import type { Row } from '@tanstack/table-core'
-import type { User } from '~/types'
+import upperFirst from 'lodash/upperFirst'
 
 const UAvatar = resolveComponent('UAvatar')
 const UButton = resolveComponent('UButton')
-const UDropdownMenu = resolveComponent('UDropdownMenu')
-const UCheckbox = resolveComponent('UCheckbox')
-
 const toast = useToast()
-const table = useTemplateRef('table')
+const table = ref()
 
-const columnFilters = ref([{
-  id: 'email',
-  value: ''
-}])
+const columnFilters = ref([{ id: 'fullName', value: '' }])
 const columnVisibility = ref()
-const rowSelection = ref({ 1: true })
-
-const { data, status } = await useFetch<User[]>('/api/users', {
-  lazy: true
-})
-
-function getRowItems(row: Row<User>) {
-  return [
-    {
-      type: 'label',
-      label: 'Actions'
-    },
-    {
-      label: 'Copy user ID',
-      icon: 'i-lucide-copy',
-      onSelect() {
-        navigator.clipboard.writeText(row.original.id.toString())
-        toast.add({
-          title: 'Copied to clipboard',
-          description: 'User ID copied to clipboard'
-        })
-      }
-    },
-    {
-      type: 'separator'
-    },
-    {
-      label: 'View user details',
-      icon: 'i-lucide-list'
-    },
-    {
-      label: 'View user payments',
-      icon: 'i-lucide-wallet'
-    },
-    {
-      type: 'separator'
-    },
-    {
-      label: 'Delete user',
-      icon: 'i-lucide-trash',
-      color: 'error',
-      onSelect() {
-        toast.add({
-          title: 'User deleted',
-          description: 'The user has been deleted.'
-        })
-      }
-    }
-  ]
-}
-
-const columns: TableColumn<User>[] = [
-  {
-    id: 'select',
-    header: ({ table }) =>
-      h(UCheckbox, {
-        'modelValue': table.getIsSomePageRowsSelected()
-          ? 'indeterminate'
-          : table.getIsAllPageRowsSelected(),
-        'onUpdate:modelValue': (value: boolean | 'indeterminate') =>
-          table.toggleAllPageRowsSelected(!!value),
-        'ariaLabel': 'Select all'
-      }),
-    cell: ({ row }) =>
-      h(UCheckbox, {
-        'modelValue': row.getIsSelected(),
-        'onUpdate:modelValue': (value: boolean | 'indeterminate') => row.toggleSelected(!!value),
-        'ariaLabel': 'Select row'
-      })
-  },
-  {
-    accessorKey: 'id',
-    header: 'ID'
-  },
-  {
-    accessorKey: 'name',
-    header: 'Name',
-    cell: ({ row }) => {
-      return h('div', { class: 'flex items-center gap-3' }, [
-        h(UAvatar, {
-          ...row.original.avatar,
-          size: 'lg'
-        }),
-        h('div', undefined, [
-          h('p', { class: 'font-medium text-highlighted' }, row.original.name),
-          h('p', { class: '' }, `@${row.original.name}`)
-        ])
-      ])
-    }
-  },
-  {
-    accessorKey: 'email',
-    header: ({ column }) => {
-      const isSorted = column.getIsSorted()
-
-      return h(UButton, {
-        color: 'neutral',
-        variant: 'ghost',
-        label: 'Email',
-        icon: isSorted
-          ? isSorted === 'asc'
-            ? 'i-lucide-arrow-up-narrow-wide'
-            : 'i-lucide-arrow-down-wide-narrow'
-          : 'i-lucide-arrow-up-down',
-        class: '-mx-2.5',
-        onClick: () => column.toggleSorting(column.getIsSorted() === 'asc')
-      })
-    }
-  },
-  {
-    accessorKey: 'location',
-    header: 'Location',
-    cell: ({ row }) => row.original.location
-  },
-  {
-    id: 'actions',
-    cell: ({ row }) => {
-      return h(
-        'div',
-        { class: 'text-right' },
-        h(
-          UDropdownMenu,
-          {
-            content: {
-              align: 'end'
-            },
-            items: getRowItems(row)
-          },
-          () =>
-            h(UButton, {
-              icon: 'i-lucide-ellipsis-vertical',
-              color: 'neutral',
-              variant: 'ghost',
-              class: 'ml-auto'
-            })
-        )
-      )
-    }
-  }
-]
+const rowSelection = ref({})
 
 const statusFilter = ref('all')
 
-watch(() => statusFilter.value, (newVal) => {
-  if (!table?.value?.tableApi) return
+const config = useRuntimeConfig()
+const apiBase = config.public?.apiBase || 'http://localhost:8080'
 
-  const statusColumn = table.value.tableApi.getColumn('status')
-  if (!statusColumn) return
+interface ApiUser {
+  user_id?: number
+  user_full_name?: string
+  user_avatar?: string | null
+  last_message_time?: string | null
+}
 
-  if (newVal === 'all') {
-    statusColumn.setFilterValue(undefined)
-  } else {
-    statusColumn.setFilterValue(newVal)
+interface TableUser {
+  id: number | null
+  fullName: string
+  initials: string
+  avatarSrc?: string
+  lastMessageTime?: string | null
+}
+
+const { data, status, error, refresh } = await useFetch<{ users: ApiUser[] }>(`${apiBase}/protected/v1/user-list`, {
+  credentials: 'include',
+  lazy: true
+})
+
+const normalizedUsers = computed<TableUser[]>(() => {
+  const users = data.value?.users
+  if (!Array.isArray(users)) return []
+
+  return users.map((user) => {
+    const fullName = user.user_full_name?.trim() || 'Unknown user'
+    const initials = fullName
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map(part => part[0]?.toUpperCase())
+      .join('') || 'U'
+
+    const avatarSrc = user.user_avatar ? normalizeAvatar(user.user_avatar) : undefined
+
+    return {
+      id: typeof user.user_id === 'number' ? user.user_id : null,
+      fullName,
+      initials,
+      avatarSrc,
+      lastMessageTime: user.last_message_time ?? null
+    }
+  })
+})
+
+function normalizeAvatar(raw?: string | null) {
+  if (!raw) return undefined
+  if (raw.startsWith('data:')) return raw
+  return `data:image/png;base64,${raw}`
+}
+
+function formatLastActive(timestamp?: string | null) {
+  if (!timestamp) return 'No recent activity'
+  const normalized = timestamp.includes('T') ? timestamp : timestamp.replace(' ', 'T')
+  const date = new Date(normalized)
+  if (Number.isNaN(date.getTime())) {
+    return timestamp
   }
-})
+  return date.toLocaleString()
+}
 
-const pagination = ref({
-  pageIndex: 0,
-  pageSize: 10
-})
+async function followUser(userId: number) {
+  try {
+    await $fetch(`/protected/v1/users/${userId}/follow`, {
+      method: 'POST',
+      credentials: 'include'
+    })
+    toast.add({ title: 'Followed', description: 'You are now following this user.' })
+    refresh()
+  } catch (e) {
+    toast.add({ title: 'Error', description: 'Could not follow user.' })
+    console.error(e)
+  }
+}
+
+const columns: TableColumn<TableUser>[] = [
+  {
+    accessorKey: 'fullName',
+    header: 'User',
+    cell: ({ row }) =>
+      h('div', { class: 'flex items-center gap-3' }, [
+        h(UAvatar, {
+          size: 'lg',
+          src: row.original.avatarSrc,
+          text: row.original.initials
+        }),
+        h('div', { class: 'flex flex-col' }, [
+          h('span', { class: 'font-medium' }, row.original.fullName),
+          h('span', { class: 'text-xs text-muted' }, formatLastActive(row.original.lastMessageTime))
+        ])
+      ])
+  },
+  {
+    accessorKey: 'lastMessageTime',
+    header: 'Last Activity',
+    cell: ({ row }) =>
+      h('span', { class: 'text-sm text-muted' }, formatLastActive(row.original.lastMessageTime))
+  },
+  {
+    id: 'actions',
+    header: '',
+    cell: ({ row }) =>
+      row.original.id == null
+        ? h('span', { class: 'text-xs text-muted' }, 'Follow unavailable')
+        : h(UButton, {
+            label: 'Follow',
+            color: 'primary',
+            size: 'sm',
+            onClick: () => followUser(row.original.id as number)
+          })
+  }
+]
+
+const pagination = ref({ pageIndex: 0, pageSize: 10 })
+
+// Comment out watcher to prevent recursion
+// watch(() => statusFilter.value, (newVal) => {
+//   if (!table?.value?.tableApi) return
+//   const statusColumn = table.value.tableApi.getColumn('status')
+//   if (!statusColumn) return
+//   if (newVal === 'all') {
+//     statusColumn.setFilterValue(undefined)
+//   } else {
+//     statusColumn.setFilterValue(newVal)
+//   }
+// })
 </script>
 
 <template>
@@ -197,11 +162,11 @@ const pagination = ref({
     <template #body>
       <div class="flex flex-wrap items-center justify-between gap-1.5">
         <UInput
-          :model-value="(table?.tableApi?.getColumn('email')?.getFilterValue() as string)"
+          :model-value="(table?.tableApi?.getColumn('fullName')?.getFilterValue() as string)"
           class="max-w-sm"
           icon="i-lucide-search"
-          placeholder="Filter emails..."
-          @update:model-value="table?.tableApi?.getColumn('email')?.setFilterValue($event)"
+          placeholder="Filter users..."
+          @update:model-value="table?.tableApi?.getColumn('fullName')?.setFilterValue($event)"
         />
 
         <div class="flex flex-wrap items-center gap-1.5">
@@ -262,7 +227,17 @@ const pagination = ref({
         </div>
       </div>
 
+      <div v-if="status === 'pending'" class="py-8 text-center text-muted">
+        Loading users...
+      </div>
+      <div v-else-if="error" class="py-8 text-center text-error">
+        Error loading users.
+      </div>
+      <div v-if="normalizedUsers.length === 0 && status === 'success' && !error" class="py-8 text-center text-muted">
+        No users found.
+      </div>
       <UTable
+        v-if="normalizedUsers.length > 0"
         ref="table"
         v-model:column-filters="columnFilters"
         v-model:column-visibility="columnVisibility"
@@ -272,7 +247,7 @@ const pagination = ref({
           getPaginationRowModel: getPaginationRowModel()
         }"
         class="shrink-0"
-        :data="data"
+        :data="normalizedUsers"
         :columns="columns"
         :loading="status === 'pending'"
         :ui="{

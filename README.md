@@ -300,36 +300,10 @@ The backend uses SQLite 3, with schema managed by migration files in `backend/as
 
 Complete API documentation is available in the OpenAPI 3.1 specification file: [`openapi.yaml`](openapi.yaml)
 
-### API Endpoints
-
-**Public Routes** (`/v1/*`): No authentication required
+### Public Endpoints
 
 - `POST /v1/register` — User registration
 - `POST /v1/login` — User login
-
-**Protected Routes** (`/protected/v1/*`): Authentication required (session cookie)
-
-- `GET /protected/v1/profile/user/{id}` — Get user profile
-- `POST /protected/v1/profile/update` — Update own profile
-- `GET /protected/v1/user/{id}/followers` — Get followers
-- `GET /protected/v1/user/{id}/following` — Get following
-- `POST /protected/v1/users/{user_id}/follow` — Send follow request
-- `POST /protected/v1/follow-requests/{request_id}` — Respond to follow request
-- `GET /protected/v1/posts` — Get posts
-- `POST /protected/v1/posts` — Create post
-- `POST /protected/v1/comments` — Create comment
-- `GET /protected/v1/user-list` — Get user list (for messaging)
-- `GET /protected/v1/private-messages/{id}` — Get conversation messages
-- `GET /protected/v1/group-list` — Get group list
-- `GET /protected/v1/groups/{id}/messages` — Get group messages
-- `POST /protected/v1/groups/{id}/messages` — Create group message
-- `GET /protected/v1/groups/{id}/posts` — Get group posts
-- `POST /protected/v1/groups/{id}/posts` — Create group post
-- `POST /protected/v1/groups/{id}/events` — Create group event
-- `POST /protected/v1/groups/{id}/join` — Request to join group
-- `PATCH /protected/v1/groups/{id}/join-requests/{userId}` — Accept/reject group join request
-- `DELETE /protected/v1/groups/{id}/leave` — Leave group
-- `GET /protected/ws` — WebSocket connection for real-time messaging and notifications
 
 ### Authentication
 

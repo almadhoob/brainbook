@@ -20,6 +20,13 @@ const links = [[{
     open.value = false
   }
 }, {
+  label: 'Groups',
+  icon: 'i-lucide-users-round',
+  to: '/groups',
+  onSelect: () => {
+    open.value = false
+  }
+}, {
   label: 'Users',
   icon: 'i-lucide-users',
   to: '/users',

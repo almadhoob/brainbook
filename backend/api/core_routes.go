@@ -26,10 +26,11 @@ func (app *Application) routes() http.Handler {
 		GetMethod("/protected/v1/comments", app.getPostComments).
 		GetMethod("/protected/v1/notifications", app.getNotifications).
 		GetMethod("/protected/v1/groups", app.getGroups).
+		PostMethod("/protected/v1/groups", app.createGroup).
 		GetMethod("/protected/v1/user/groups", app.userGroups).
 		GetMethod("/protected/v1/groups/{group_id}", app.withGroup(app.groupDetails)).
 		GetMethod("/protected/v1/groups/{group_id}/members", app.requireGroupMember(app.getMembers)).
-		GetMethod("/protected/v1/groups/{group_id}/posts", app.withGroup(app.groupPosts)).
+		GetMethod("/protected/v1/groups/{group_id}/posts", app.requireGroupMember(app.groupPosts)).
 		GetMethod("/protected/v1/groups/{group_id}/messages", app.requireGroupMember(app.getGroupMessages)).
 		GetMethod("/protected/v1/groups/{group_id}/events", app.requireGroupMember(app.listGroupEvents)).
 		GetMethod("/protected/v1/groups/{group_id}/posts/{post_id}/comments", app.requireGroupMember(app.getGroupPostComments)).

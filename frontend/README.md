@@ -1,6 +1,16 @@
-# Nuxt Dashboard Template
+# BrainBook Frontend
 
-Get started with the Nuxt dashboard template with multiple pages, collapsible sidebar, keyboard shortcuts, light & dark more, command palette and more, powered by [Nuxt UI Pro](https://ui4.nuxt.com/docs/getting-started/).
+This package contains the Nuxt 4 dashboard that powers the BrainBook social network. It delivers the authenticated experience (home, posts, groups, users, messages, notifications, and settings) to end users.
+
+## API configuration
+
+The UI talks to the Go backend through the `NUXT_PUBLIC_API_BASE` runtime config. During local development the default of `http://localhost:8080` (configured in `nuxt.config.ts`) matches the backend server. To point the UI at a different host:
+
+```bash
+NUXT_PUBLIC_API_BASE="https://brainbook.vercel.app" pnpm dev
+```
+
+or update the `runtimeConfig.public.apiBase` value in `nuxt.config.ts`.
 
 ## Setup
 
@@ -33,9 +43,3 @@ pnpm preview
 ```
 
 Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
-
-<!-- 
-## Renovate integration
-
-Install [Renovate GitHub app](https://github.com/apps/renovate/installations/select_target) on your repository and you are good to go.
- -->

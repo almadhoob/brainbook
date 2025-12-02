@@ -69,13 +69,14 @@ func (db *DB) GroupsByUserID(userID int) ([]Group, error) {
 
 	var groups []Group
 
-	query := `SELECT *
-		FROM groups g 
-		JOIN group_members as gm ON gm.user_id = $1
-		WHERE gm.group_id = g.id
+	query := `
+		SELECT g.id, g.owner_id, g.title, g.description, g.created_at
+		FROM groups AS g
+		JOIN group_members AS gm ON gm.group_id = g.id
+		WHERE gm.user_id = $1
 		ORDER BY g.title ASC`
 
-	err := db.GetContext(ctx, &groups, query, userID)
+	err := db.SelectContext(ctx, &groups, query, userID)
 	if err != nil {
 		return nil, err
 	}

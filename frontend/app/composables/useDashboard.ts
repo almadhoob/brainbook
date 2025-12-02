@@ -8,6 +8,7 @@ const _useDashboard = () => {
   defineShortcuts({
     'g-h': () => router.push('/'),
     'g-p': () => router.push('/posts'),
+    'g-g': () => router.push('/groups'),
     'g-u': () => router.push('/users'),
     'g-m': () => router.push('/messages'),
     'g-s': () => router.push('/settings'),

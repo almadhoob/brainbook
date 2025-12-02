@@ -88,6 +88,10 @@ function formatTimestamp(timestamp?: string | null) {
   return parsed.toLocaleString()
 }
 
+function handlePostCreated() {
+  refresh()
+}
+
 function handleRefreshClick(_: MouseEvent) {
   return refresh()
 }
@@ -111,6 +115,7 @@ function handleRefreshClick(_: MouseEvent) {
           >
             Refresh
           </UButton>
+          <PostsCreateModal :api-base="apiBase" @created="handlePostCreated" />
         </template>
       </UDashboardNavbar>
     </template>

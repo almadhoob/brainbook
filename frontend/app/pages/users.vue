@@ -152,7 +152,6 @@ const pagination = ref({ pageIndex: 0, pageSize: 10 })
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
-
       </UDashboardNavbar>
     </template>
 
@@ -187,9 +186,8 @@ const pagination = ref({ pageIndex: 0, pageSize: 10 })
             v-model="statusFilter"
             :items="[
               { label: 'All', value: 'all' },
-              { label: 'Subscribed', value: 'subscribed' },
-              { label: 'Unsubscribed', value: 'unsubscribed' },
-              { label: 'Bounced', value: 'bounced' }
+              { label: 'Following', value: 'following' },
+              { label: 'Followers', value: 'followers' }
             ]"
             :ui="{ trailingIcon: 'group-data-[state=open]:rotate-180 transition-transform duration-200' }"
             placeholder="Filter status"

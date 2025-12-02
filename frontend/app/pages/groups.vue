@@ -126,17 +126,6 @@ const detailLoading = ref(false)
 const detailError = ref<string | null>(null)
 const refreshingGroups = ref(false)
 
-const createGroupModalOpen = ref(false)
-const createGroupForm = reactive({
-  title: '',
-  description: ''
-})
-const createGroupErrors = reactive({
-  title: '',
-  description: ''
-})
-const createGroupLoading = ref(false)
-
 const newPostForm = reactive({
   content: '',
   file: null as string | null
@@ -392,67 +381,16 @@ async function refreshGroups() {
   }
 }
 
+async function handleGroupCreated() {
+  await refreshGroups()
+}
+
 function selectGroup(id: number) {
   if (selectedGroupId.value === id) {
     return
   }
   selectedGroupId.value = id
 }
-
-async function submitCreateGroup() {
-  createGroupErrors.title = ''
-  createGroupErrors.description = ''
-
-  const title = createGroupForm.title.trim()
-  const description = createGroupForm.description.trim()
-
-  if (!title) {
-    createGroupErrors.title = 'Title is required.'
-  }
-  if (!description) {
-    createGroupErrors.description = 'Description is required.'
-  }
-  if (createGroupErrors.title || createGroupErrors.description) {
-    return
-  }
-
-  try {
-    createGroupLoading.value = true
-    await $fetch(`${apiBase}/protected/v1/groups`, {
-      method: 'POST',
-      credentials: 'include',
-      body: {
-        title,
-        description
-      }
-    })
-    toast.add({ title: 'Group created', description: 'You can now invite people to your group.' })
-    createGroupModalOpen.value = false
-    resetCreateGroupForm()
-    await refreshGroups()
-  } catch (error) {
-    toast.add({
-      title: 'Unable to create group',
-      description: extractErrorMessage(error) || 'Please try again later.',
-      color: 'error'
-    })
-  } finally {
-    createGroupLoading.value = false
-  }
-}
-
-function resetCreateGroupForm() {
-  createGroupForm.title = ''
-  createGroupForm.description = ''
-  createGroupErrors.title = ''
-  createGroupErrors.description = ''
-}
-
-watch(() => createGroupModalOpen.value, (open) => {
-  if (!open) {
-    resetCreateGroupForm()
-  }
-})
 
 async function submitJoinRequest() {
   if (selectedGroupId.value == null) {
@@ -850,9 +788,7 @@ function fileToBase64(file: File) {
           >
             Refresh
           </UButton>
-          <UButton icon="i-lucide-plus" @click="createGroupModalOpen = true">
-            New group
-          </UButton>
+          <GroupsCreateModal :api-base="apiBase" @created="handleGroupCreated" />
         </template>
       </UDashboardNavbar>
     </template>
@@ -1207,35 +1143,4 @@ function fileToBase64(file: File) {
       </div>
     </template>
   </UDashboardPanel>
-
-  <UModal v-model="createGroupModalOpen">
-    <UCard>
-      <template #header>
-        <h3 class="text-lg font-semibold">
-          Create a group
-        </h3>
-      </template>
-      <form class="space-y-4" @submit.prevent="submitCreateGroup">
-        <UFormGroup label="Title" :error="createGroupErrors.title">
-          <UInput v-model="createGroupForm.title" placeholder="AI Researchers" />
-        </UFormGroup>
-        <UFormGroup label="Description" :error="createGroupErrors.description">
-          <UTextarea v-model="createGroupForm.description" placeholder="Describe the purpose of your group" />
-        </UFormGroup>
-        <div class="flex justify-end gap-2">
-          <UButton
-            type="button"
-            color="neutral"
-            variant="ghost"
-            @click="createGroupModalOpen = false"
-          >
-            Cancel
-          </UButton>
-          <UButton type="submit" :loading="createGroupLoading">
-            Create group
-          </UButton>
-        </div>
-      </form>
-    </UCard>
-  </UModal>
 </template>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { DropdownMenuItem } from '@nuxt/ui'
+import heroBackground from '~/assets/background.jpg'
 
 const { isNotificationsSlideoverOpen } = useDashboard()
 
@@ -39,8 +40,6 @@ const stats = [{
   icon: 'i-lucide-users-round',
   trend: 'up'
 }] as const
-
-const heroBackground = '/background.jpg'
 
 const heroBackgroundStyle = computed(() => ({
   backgroundImage: `linear-gradient(140deg, rgba(15, 23, 42, 0.92), rgba(6, 182, 212, 0.75)), url(${heroBackground})`
@@ -89,7 +88,7 @@ const heroBackgroundStyle = computed(() => ({
               </p>
               <div>
                 <h1 class="text-3xl font-semibold lg:text-4xl">
-                  Welcome back to BrainBook
+                  Welcome to the BrainBook
                 </h1>
                 <p class="mt-3 text-base text-white/80">
                   Here's a quick pulse on what your members are doing right now.

@@ -8,6 +8,7 @@ import (
 	"brainbook-api/internal/response"
 	t "brainbook-api/internal/time"
 	"brainbook-api/internal/validator"
+
 	"github.com/gorilla/websocket"
 )
 
@@ -131,8 +132,10 @@ func SendMessageHandler(event Event, c *Client) error {
 
 	c.manager.CreateAndPushNotification(chatevent.ReceiverID, "direct_message", map[string]interface{}{
 		"sender_id":       user.ID,
+		"sender_name":     user.FullName(),
 		"conversation_id": conversationID,
 		"message":         chatevent.Message,
+		"sent_at":         currentDateTime,
 	})
 
 	return nil
@@ -175,6 +178,11 @@ func SendGroupMessageHandler(event Event, c *Client) error {
 		return err
 	}
 
+	group, err := c.manager.DB.GroupByID(payload.GroupID)
+	if err != nil {
+		return err
+	}
+
 	message := ReceiveGroupMessageEvent{
 		Message:  payload.Message,
 		SenderID: user.ID,
@@ -206,9 +214,12 @@ func SendGroupMessageHandler(event Event, c *Client) error {
 				continue
 			}
 			c.manager.CreateAndPushNotification(member.ID, "group_message", map[string]interface{}{
-				"group_id":  payload.GroupID,
-				"sender_id": user.ID,
-				"message":   payload.Message,
+				"group_id":    payload.GroupID,
+				"group_title": group.Title,
+				"sender_id":   user.ID,
+				"sender_name": user.FullName(),
+				"message":     payload.Message,
+				"sent_at":     currentTime,
 			})
 		}
 	}

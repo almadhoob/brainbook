@@ -1,25 +1,68 @@
 <script setup lang="ts">
 import type { DropdownMenuItem } from '@nuxt/ui'
+import { normalizeAvatar } from '~/utils'
 
 defineProps<{
   collapsed?: boolean
 }>()
 
-const user = ref({
-  name: 'Sayed Waleed',
-  avatar: {
-    src: 'https://randomuser.me/api/portraits/men/1.jpg',
-    alt: 'Sayed Waleed'
-  }
-})
+const runtimeConfig = useRuntimeConfig()
+const apiBase = runtimeConfig.public?.apiBase || 'http://localhost:8080'
+const toast = useToast()
+const router = useRouter()
 
-const items = computed<DropdownMenuItem[][]>(() => ([[{
+const { session, hydrate } = useSession()
+if (import.meta.client) {
+  hydrate()
+}
+
+const avatarSrc = computed(() => normalizeAvatar(session.value.avatar))
+const displayName = computed(() => session.value.full_name || 'Account')
+const initials = computed(() => {
+  const parts = displayName.value.split(/\s+/).filter(Boolean)
+  if (!parts.length) return 'U'
+  return parts.map(part => part[0]?.toUpperCase()).join('').slice(0, 2)
+})
+const buttonConfig = computed(() => ({
+  avatar: {
+    src: avatarSrc.value ?? undefined,
+    text: initials.value,
+    alt: displayName.value
+  }
+}))
+
+const handleLogout = async () => {
+  try {
+    await $fetch('/protected/v1/logout', {
+      method: 'POST',
+      baseURL: apiBase,
+      credentials: 'include'
+    })
+    if (import.meta.client) {
+      window.localStorage.removeItem('user_id')
+    }
+    await router.push('/signin')
+  } catch (err) {
+    toast.add({
+      title: 'Logout failed',
+      description: 'Something went wrong while signing out',
+      color: 'error'
+    })
+    console.error(err)
+  }
+}
+
+const items = computed<DropdownMenuItem[][]>(() => [[{
   type: 'label',
-  label: user.value.name,
-  avatar: user.value.avatar
+  label: displayName.value,
+  avatar: {
+    src: avatarSrc.value ?? undefined,
+    text: initials.value
+  }
 }], [{
   label: 'Profile',
-  icon: 'i-lucide-user'
+  icon: 'i-lucide-user',
+  to: '/settings'
 }, {
   label: 'Settings',
   icon: 'i-lucide-settings',
@@ -31,8 +74,9 @@ const items = computed<DropdownMenuItem[][]>(() => ([[{
   target: '_blank'
 }, {
   label: 'Log out',
-  icon: 'i-lucide-log-out'
-}]]))
+  icon: 'i-lucide-log-out',
+  onSelect: handleLogout
+}]])
 </script>
 
 <template>
@@ -42,19 +86,15 @@ const items = computed<DropdownMenuItem[][]>(() => ([[{
     :ui="{ content: collapsed ? 'w-48' : 'w-(--reka-dropdown-menu-trigger-width)' }"
   >
     <UButton
-      v-bind="{
-        ...user,
-        label: collapsed ? undefined : user?.name,
-        trailingIcon: collapsed ? undefined : 'i-lucide-chevrons-up-down'
-      }"
+      v-bind="buttonConfig"
+      :label="collapsed ? undefined : displayName"
       color="neutral"
       variant="ghost"
       block
       :square="collapsed"
       class="data-[state=open]:bg-elevated"
-      :ui="{
-        trailingIcon: 'text-dimmed'
-      }"
+      :trailing-icon="collapsed ? undefined : 'i-lucide-chevrons-up-down'"
+      :ui="{ trailingIcon: 'text-dimmed' }"
     />
 
     <template #chip-leading="{ item }">

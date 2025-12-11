@@ -2,10 +2,11 @@
 import type { NavigationMenuItem } from '@nuxt/ui'
 
 const toast = useToast()
+const { unreadCount } = useNotifications()
 
 const open = ref(false)
 
-const links = [[{
+const links = computed<NavigationMenuItem[][]>(() => [[{
   label: 'Home',
   icon: 'i-lucide-house',
   to: '/',
@@ -37,7 +38,7 @@ const links = [[{
   label: 'Messages',
   icon: 'i-lucide-inbox',
   to: '/messages',
-  badge: '4',
+  badge: unreadCount.value ? String(unreadCount.value) : undefined,
   onSelect: () => {
     open.value = false
   }
@@ -67,7 +68,7 @@ const links = [[{
       open.value = false
     }
   }]
-}]] satisfies NavigationMenuItem[][]
+}], []])
 
 onMounted(async () => {
   const cookie = useCookie('cookie-consent')

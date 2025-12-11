@@ -5,11 +5,14 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
 	db "brainbook-api/internal/database"
+	"brainbook-api/internal/env"
 	"brainbook-api/internal/response"
+
 	"github.com/gorilla/websocket"
 )
 
@@ -28,15 +31,49 @@ var (
 )
 
 // checkOrigin will check origin and return true if it's allowed
-func checkOrigin(r *http.Request) bool {
-	origin := r.Header.Get("Origin")
+var (
+	allowedOrigins  = map[string]struct{}{}
+	allowAllOrigins bool
+)
 
-	switch origin {
-	case "http://localhost:8080":
-		return true
-	default:
-		return false
+func init() {
+	defaults := []string{
+		"http://localhost:8080",
+		"https://localhost:8080",
+		"http://localhost:3000",
+		"https://localhost:3000",
 	}
+	for _, origin := range defaults {
+		allowedOrigins[origin] = struct{}{}
+	}
+
+	if extra := strings.TrimSpace(env.GetString("ALLOWED_WS_ORIGINS", "")); extra != "" {
+		if extra == "*" {
+			allowAllOrigins = true
+			return
+		}
+		for _, origin := range strings.Split(extra, ",") {
+			trimmed := strings.TrimSpace(origin)
+			if trimmed == "" {
+				continue
+			}
+			allowedOrigins[trimmed] = struct{}{}
+		}
+	}
+}
+
+func checkOrigin(r *http.Request) bool {
+	if allowAllOrigins {
+		return true
+	}
+
+	origin := strings.TrimSpace(r.Header.Get("Origin"))
+	if origin == "" {
+		return true
+	}
+
+	_, ok := allowedOrigins[origin]
+	return ok
 }
 
 // Holds references to all registered clients and broadcasts messages to all clients.

@@ -21,8 +21,9 @@ func (app *Application) getUserList(w http.ResponseWriter, r *http.Request) {
 
 	for _, user := range users {
 		usersWithFullName = append(usersWithFullName, map[string]any{
-			"user_full_name": user.FullName(),
-			"user_avatar":    user.Avatar,
+			"user_id":           user.ID,
+			"user_full_name":    user.FullName(),
+			"user_avatar":       user.Avatar,
 			"last_message_time": user.LastMessageTime,
 		})
 	}
@@ -30,7 +31,7 @@ func (app *Application) getUserList(w http.ResponseWriter, r *http.Request) {
 	responseData := map[string]interface{}{
 		"users": usersWithFullName,
 	}
-	
+
 	err = response.JSON(w, http.StatusOK, responseData)
 	if err != nil {
 		app.serverError(w, r, err)

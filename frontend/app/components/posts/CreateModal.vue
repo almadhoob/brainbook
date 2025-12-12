@@ -236,7 +236,7 @@ async function handleSubmit() {
     <template #body>
       <div class="space-y-3">
         <p class="text-sm">
-          Limited posts are visible to your followers only. To target specific followers, use Private visibility instead.
+          Select the followers you want to see this post
         </p>
         <div class="flex justify-end">
           <UButton color="primary" @click="limitedInfoOpen = false">Got it</UButton>

@@ -19,7 +19,16 @@ const errors = reactive({
 const fileName = ref('')
 const filePayload = ref<string | undefined>(undefined)
 const toast = useToast()
-const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB limit to mirror backend guard
+const MAX_FILE_SIZE = 10 * 1024 * 1024
+
+const limitedInfoOpen = ref(false)
+
+watch(() => form.visibility, (v) => {
+  if (v === 'private') {
+    limitedInfoOpen.value = true
+    form.visibility = 'almost_private'
+  }
+})
 
 watch(open, (value) => {
   if (!value) {
@@ -67,7 +76,7 @@ async function handleFileChange(event: Event) {
   }
 
   if (file.size > MAX_FILE_SIZE) {
-    errors.file = 'File exceeds 5 MB limit.'
+    errors.file = 'File exceeds 10 MB limit.'
     return
   }
 
@@ -159,38 +168,38 @@ async function handleSubmit() {
     </UButton>
 
     <template #body>
-      <form class="space-y-4" @submit.prevent="handleSubmit">
-        <UFieldGroup label="Content" :error="errors.content">
-          <UTextarea
-            v-model="form.content"
-            placeholder="What's on your mind?"
-            :rows="5"
-            autoresize
-          />
+      <form class="space-y-4 w-full" @submit.prevent="handleSubmit">
+        <UFieldGroup
+          label="Content"
+          :error="errors.content"
+          class="w-full max-w-none"
+          :ui="{ container: 'w-full flex flex-col', label: 'w-full', wrapper: 'w-full max-w-none' }"
+        >
+          <div class="relative w-full">
+            <UTextarea
+              v-model="form.content"
+              placeholder="What's on your mind?"
+              :rows="5"
+              autoresize
+              class="w-full"
+            />
+            <span class="absolute bottom-2 right-2 text-xs text-neutral-500">
+              {{ form.content.length }} chars
+            </span>
+          </div>
         </UFieldGroup>
 
-        <UFieldGroup label="Privacy" description="Choose who can see this post">
+        <div class="mt-2 flex flex-col gap-2 items-start">
           <USelect
             v-model="form.visibility"
+            class="max-w-xs"
             :items="[
               { label: 'Public (everyone)', value: 'public' },
-              { label: 'Almost private (followers only)', value: 'almost_private' },
-              { label: 'Private (select followers)', value: 'private' }
+              { label: 'Private (followers only)', value: 'almost_private' },
+              { label: 'Limited (select followers)', value: 'private' }
             ]"
           />
-        </UFieldGroup>
-
-        <UFieldGroup
-          v-if="form.visibility === 'private'"
-          label="Allowed follower IDs"
-          description="Comma-separated follower user IDs who can view this post"
-          :error="errors.content"
-        >
-          <UInput
-            v-model="form.allowedUserIds"
-            placeholder="e.g., 12, 34, 56"
-          />
-        </UFieldGroup>
+        </div>
 
         <UFieldGroup label="Attachment" :description="fileName || 'Optional image or file'" :error="errors.file">
           <input
@@ -215,6 +224,24 @@ async function handleSubmit() {
           </UButton>
         </div>
       </form>
+    </template>
+  </UModal>
+
+  <!-- Popup shown when 'Limited' is selected -->
+  <UModal
+    v-model:open="limitedInfoOpen"
+    title="Limited visibility"
+    description="Only your followers can view limited posts."
+  >
+    <template #body>
+      <div class="space-y-3">
+        <p class="text-sm">
+          Limited posts are visible to your followers only. To target specific followers, use Private visibility instead.
+        </p>
+        <div class="flex justify-end">
+          <UButton color="primary" @click="limitedInfoOpen = false">Got it</UButton>
+        </div>
+      </div>
     </template>
   </UModal>
 </template>

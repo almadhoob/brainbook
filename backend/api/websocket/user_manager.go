@@ -14,9 +14,9 @@ func (m *WebsocketManager) GetOnlineUsersData() []map[string]interface{} {
 	var users []map[string]interface{}
 	for client := range m.clients {
 		users = append(users, map[string]interface{}{
-			"id":       client.userID,
+			"id":        client.userID,
 			"full_name": client.fullName,
-			"status":   "online",
+			"status":    "online",
 		})
 	}
 	return users

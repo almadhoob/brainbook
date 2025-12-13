@@ -21,11 +21,12 @@ func (m *WebsocketManager) startPeriodicUserListBroadcast() {
 }
 
 // stopPeriodicUserListBroadcast stops the periodic user list broadcast
-func (m *WebsocketManager) stopPeriodicUserListBroadcast() {
-	if m.userListTicker != nil {
-		m.stopTicker <- true
-	}
-}
+
+// func (m *WebsocketManager) stopPeriodicUserListBroadcast() {
+// 	if m.userListTicker != nil {
+// 		m.stopTicker <- true
+// 	}
+// }
 
 // broadcastUserList sends user status changes to all connected clients
 func (m *WebsocketManager) broadcastUserList() {

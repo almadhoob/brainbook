@@ -13,7 +13,7 @@ type contextKey string
 // creating constant with the type contextKey
 const (
 	authenticatedUserContextKey = contextKey("authenticatedUser")
-	groupContextKey            = contextKey("group")
+	groupContextKey             = contextKey("group")
 )
 
 // sets the value in request context, using the constant above

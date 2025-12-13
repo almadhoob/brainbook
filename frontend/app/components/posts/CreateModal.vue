@@ -6,7 +6,9 @@ const open = ref(false)
 const loading = ref(false)
 
 const form = reactive({
-  content: ''
+  content: '',
+  visibility: 'public',
+  allowedUserIds: ''
 })
 
 const errors = reactive({
@@ -17,7 +19,7 @@ const errors = reactive({
 const fileName = ref('')
 const filePayload = ref<string | undefined>(undefined)
 const toast = useToast()
-const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB limit to prevent oversized uploads
+const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB limit to mirror backend guard
 
 watch(open, (value) => {
   if (!value) {
@@ -27,6 +29,8 @@ watch(open, (value) => {
 
 function resetForm() {
   form.content = ''
+  form.visibility = 'public'
+  form.allowedUserIds = ''
   errors.content = ''
   errors.file = ''
   fileName.value = ''
@@ -103,6 +107,20 @@ async function handleSubmit() {
     return
   }
 
+  const visibility = form.visibility
+  const allowedIds: number[] = []
+  if (visibility === 'private') {
+    const cleaned = form.allowedUserIds
+      .split(',')
+      .map(part => Number.parseInt(part.trim(), 10))
+      .filter(n => Number.isInteger(n) && n > 0)
+    if (cleaned.length === 0) {
+      errors.content = 'Provide at least one allowed follower ID for private posts.'
+      return
+    }
+    allowedIds.push(...cleaned)
+  }
+
   try {
     loading.value = true
     await $fetch(`${props.apiBase}/protected/v1/posts`, {
@@ -110,7 +128,9 @@ async function handleSubmit() {
       credentials: 'include',
       body: {
         content,
-        file: filePayload.value
+        file: filePayload.value,
+        visibility,
+        allowed_user_ids: allowedIds
       }
     })
     toast.add({ title: 'Post created', description: 'Your update is live.' })
@@ -146,6 +166,29 @@ async function handleSubmit() {
             placeholder="What's on your mind?"
             :rows="5"
             autoresize
+          />
+        </UFieldGroup>
+
+        <UFieldGroup label="Privacy" description="Choose who can see this post">
+          <USelect
+            v-model="form.visibility"
+            :items="[
+              { label: 'Public (everyone)', value: 'public' },
+              { label: 'Almost private (followers only)', value: 'almost_private' },
+              { label: 'Private (select followers)', value: 'private' }
+            ]"
+          />
+        </UFieldGroup>
+
+        <UFieldGroup
+          v-if="form.visibility === 'private'"
+          label="Allowed follower IDs"
+          description="Comma-separated follower user IDs who can view this post"
+          :error="errors.content"
+        >
+          <UInput
+            v-model="form.allowedUserIds"
+            placeholder="e.g., 12, 34, 56"
           />
         </UFieldGroup>
 

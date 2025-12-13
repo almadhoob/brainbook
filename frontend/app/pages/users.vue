@@ -24,6 +24,15 @@ interface ApiUser {
   last_message_time?: string | null
 }
 
+interface ApiFollowRequest {
+  id?: number
+  requester_id?: number
+  f_name?: string | null
+  l_name?: string | null
+  avatar?: string | null
+  created_at?: string | null
+}
+
 interface TableUser {
   id: number | null
   fullName: string
@@ -36,6 +45,11 @@ const { data, status, error, refresh } = await useFetch<{ users: ApiUser[] }>(`$
   credentials: 'include',
   lazy: true
 })
+
+const { data: followRequestsData, refresh: refreshFollowRequests } = await useFetch<{ requests: ApiFollowRequest[] }>(
+  `${apiBase}/protected/v1/follow-requests`,
+  { credentials: 'include', lazy: true }
+)
 
 const normalizedUsers = computed<TableUser[]>(() => {
   const users = data.value?.users
@@ -80,14 +94,46 @@ function formatLastActive(timestamp?: string | null) {
 
 async function followUser(userId: number) {
   try {
-    await $fetch(`/protected/v1/users/${userId}/follow`, {
+    await $fetch(`${apiBase}/protected/v1/users/${userId}/follow`, {
       method: 'POST',
       credentials: 'include'
     })
-    toast.add({ title: 'Followed', description: 'You are now following this user.' })
+    toast.add({ title: 'Follow request sent', description: 'Pending if the profile is private.' })
     refresh()
   } catch (e) {
     toast.add({ title: 'Error', description: 'Could not follow user.' })
+    console.error(e)
+  }
+}
+
+async function unfollowUser(userId: number) {
+  try {
+    await $fetch(`${apiBase}/protected/v1/users/${userId}/unfollow`, {
+      method: 'POST',
+      credentials: 'include'
+    })
+    toast.add({ title: 'Unfollowed', description: 'You are no longer following this user.' })
+    refresh()
+  } catch (e) {
+    toast.add({ title: 'Error', description: 'Could not unfollow user.' })
+    console.error(e)
+  }
+}
+
+async function respondFollowRequest(requestId: number, action: 'accept' | 'decline') {
+  try {
+    await $fetch(`${apiBase}/protected/v1/follow-requests/${requestId}`, {
+      method: 'POST',
+      credentials: 'include',
+      body: { action }
+    })
+    toast.add({
+      title: action === 'accept' ? 'Request accepted' : 'Request declined',
+      description: 'Follow request updated.'
+    })
+    await refreshFollowRequests()
+  } catch (e) {
+    toast.add({ title: 'Error', description: 'Could not update follow request.' })
     console.error(e)
   }
 }
@@ -121,12 +167,21 @@ const columns: TableColumn<TableUser>[] = [
     cell: ({ row }) =>
       row.original.id == null
         ? h('span', { class: 'text-xs text-muted' }, 'Follow unavailable')
-        : h(UButton, {
-            label: 'Follow',
-            color: 'primary',
-            size: 'sm',
-            onClick: () => followUser(row.original.id as number)
-          })
+        : h('div', { class: 'flex gap-2' }, [
+            h(UButton, {
+              label: 'Follow / Request',
+              color: 'primary',
+              size: 'sm',
+              onClick: () => followUser(row.original.id as number)
+            }),
+            h(UButton, {
+              label: 'Unfollow',
+              color: 'neutral',
+              variant: 'soft',
+              size: 'sm',
+              onClick: () => unfollowUser(row.original.id as number)
+            })
+          ])
   }
 ]
 
@@ -238,6 +293,57 @@ const pagination = ref({ pageIndex: 0, pageSize: 10 })
           separator: 'h-0'
         }"
       />
+
+      <section class="mt-8 space-y-4">
+        <div class="flex items-center justify-between">
+          <h3 class="text-lg font-semibold">
+            Pending follow requests
+          </h3>
+          <UButton
+            color="neutral"
+            variant="ghost"
+            icon="i-lucide-refresh-cw"
+            @click="refreshFollowRequests()"
+          >
+            Refresh
+          </UButton>
+        </div>
+
+        <div v-if="!followRequestsData?.requests?.length" class="rounded-xl border border-default/60 p-4 text-sm text-muted">
+          No pending requests right now.
+        </div>
+
+        <div v-else class="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+          <UCard v-for="req in followRequestsData.requests" :key="req.id">
+            <div class="flex items-center gap-3">
+              <UAvatar :src="req.avatar ? `data:image/png;base64,${req.avatar}` : undefined" :text="(req.f_name || '?')[0]" />
+              <div>
+                <p class="font-medium">
+                  {{ `${req.f_name ?? ''} ${req.l_name ?? ''}`.trim() || 'Unknown user' }}
+                </p>
+                <p class="text-xs text-muted">
+                  Requested {{ formatLastActive(req.created_at) }}
+                </p>
+              </div>
+            </div>
+            <template #footer>
+              <div class="flex gap-2">
+                <UButton size="sm" color="primary" @click="respondFollowRequest(req.id as number, 'accept')">
+                  Accept
+                </UButton>
+                <UButton
+                  size="sm"
+                  color="neutral"
+                  variant="soft"
+                  @click="respondFollowRequest(req.id as number, 'decline')"
+                >
+                  Decline
+                </UButton>
+              </div>
+            </template>
+          </UCard>
+        </div>
+      </section>
 
       <div class="flex items-center justify-between gap-3 border-t border-default pt-4 mt-auto">
         <div class="text-sm text-muted">

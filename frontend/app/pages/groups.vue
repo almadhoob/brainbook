@@ -52,6 +52,8 @@ interface ApiGroupEvent {
   title?: string | null
   description?: string | null
   time?: string | null
+  interested?: number | null
+  not_interested?: number | null
 }
 
 interface GroupSummary {
@@ -78,6 +80,8 @@ interface GroupEventItem {
   description: string
   timeRaw: string
   formattedTime: string
+  goingCount: number
+  notGoingCount: number
 }
 
 interface GroupPostItem {
@@ -139,6 +143,10 @@ const newEventForm = reactive({
   time: ''
 })
 const createEventLoading = ref(false)
+
+const rsvpLoading = reactive<Record<number, boolean>>({})
+
+const ownerRequestResponse = reactive({ requestId: '', action: 'accept' as 'accept' | 'decline', loading: false })
 
 const commentsCache = reactive<Record<number, GroupComment[]>>({})
 const commentsLoading = reactive<Record<number, boolean>>({})
@@ -581,6 +589,55 @@ async function submitEvent() {
   }
 }
 
+async function respondRsvp(eventId: number, response: 'going' | 'not_going') {
+  if (!showMemberContent.value || selectedGroupId.value == null) {
+    return
+  }
+
+  rsvpLoading[eventId] = true
+  try {
+    await $fetch(`${apiBase}/protected/v1/groups/${selectedGroupId.value}/events/${eventId}/rsvp`, {
+      method: 'POST',
+      credentials: 'include',
+      body: { response }
+    })
+    toast.add({
+      title: response === 'going' ? 'RSVP saved' : 'RSVP updated',
+      description: response === 'going' ? 'See you there!' : 'You marked not going.'
+    })
+    await loadGroupDetail(selectedGroupId.value)
+  } catch (error) {
+    toast.add({ title: 'Unable to RSVP', description: extractErrorMessage(error) || 'Try again later.', color: 'error' })
+  } finally {
+    rsvpLoading[eventId] = false
+  }
+}
+
+async function respondGroupRequestById() {
+  if (!isOwner.value || selectedGroupId.value == null) return
+  const requestId = Number.parseInt(ownerRequestResponse.requestId, 10)
+  if (!Number.isInteger(requestId) || requestId <= 0) {
+    toast.add({ title: 'Invalid request ID', color: 'error' })
+    return
+  }
+
+  ownerRequestResponse.loading = true
+  try {
+    await $fetch(`${apiBase}/protected/v1/groups/${selectedGroupId.value}/requests/${requestId}`, {
+      method: 'POST',
+      credentials: 'include',
+      body: { action: ownerRequestResponse.action }
+    })
+    toast.add({ title: 'Request updated', description: `Marked ${ownerRequestResponse.action}.` })
+    ownerRequestResponse.requestId = ''
+    await loadGroupDetail(selectedGroupId.value)
+  } catch (error) {
+    toast.add({ title: 'Unable to update request', description: extractErrorMessage(error) || 'Try again later.', color: 'error' })
+  } finally {
+    ownerRequestResponse.loading = false
+  }
+}
+
 const anyGroupsLoaded = computed(() => normalizedAllGroups.value.length > 0 || normalizedMyGroups.value.length > 0)
 
 function extractErrorMessage(error: unknown): string {
@@ -653,7 +710,9 @@ function normalizeEvents(events?: ApiGroupEvent[]): GroupEventItem[] {
       title: (event.title ?? '').trim() || 'Untitled event',
       description: (event.description ?? '').trim(),
       timeRaw: event.time ?? '',
-      formattedTime: formatDate(event.time)
+      formattedTime: formatDate(event.time),
+      goingCount: typeof event.interested === 'number' ? event.interested : 0,
+      notGoingCount: typeof event.not_interested === 'number' ? event.not_interested : 0
     }
   })
 }
@@ -983,7 +1042,65 @@ function fileToBase64(file: File) {
                             <p v-if="event.description" class="mt-2 text-sm">
                               {{ event.description }}
                             </p>
+
+                            <div class="mt-3 flex items-center gap-3 text-sm text-muted">
+                              <span class="flex items-center gap-1"><UIcon name="i-lucide-check" class="size-4" /> {{ event.goingCount }} going</span>
+                              <span class="flex items-center gap-1"><UIcon name="i-lucide-x" class="size-4" /> {{ event.notGoingCount }} not going</span>
+                            </div>
+
+                            <template #footer>
+                              <div class="flex flex-wrap gap-2">
+                                <UButton
+                                  size="sm"
+                                  color="primary"
+                                  :loading="rsvpLoading[event.id]"
+                                  @click="respondRsvp(event.id, 'going')"
+                                >
+                                  I'm going
+                                </UButton>
+                                <UButton
+                                  size="sm"
+                                  color="neutral"
+                                  variant="soft"
+                                  :loading="rsvpLoading[event.id]"
+                                  @click="respondRsvp(event.id, 'not_going')"
+                                >
+                                  Not going
+                                </UButton>
+                              </div>
+                            </template>
                           </UCard>
+                        </div>
+
+                        <div v-if="isOwner" class="mt-6 rounded-xl border border-default/60 p-4">
+                          <div class="flex items-center justify-between gap-3">
+                            <div>
+                              <p class="font-medium">
+                                Process join/invite request
+                              </p>
+                              <p class="text-xs text-muted">
+                                Enter request ID from notifications to accept or decline.
+                              </p>
+                            </div>
+                            <USelect
+                              v-model="ownerRequestResponse.action"
+                              :items="[
+                                { label: 'Accept', value: 'accept' },
+                                { label: 'Decline', value: 'decline' }
+                              ]"
+                              class="w-28"
+                            />
+                          </div>
+                          <div class="mt-3 flex gap-2">
+                            <UInput
+                              v-model="ownerRequestResponse.requestId"
+                              placeholder="Request ID"
+                              class="max-w-xs"
+                            />
+                            <UButton :loading="ownerRequestResponse.loading" @click="respondGroupRequestById">
+                              Update request
+                            </UButton>
+                          </div>
                         </div>
                       </section>
 

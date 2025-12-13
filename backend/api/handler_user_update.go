@@ -9,19 +9,7 @@ import (
 
 func (app *Application) updateProfile(w http.ResponseWriter, r *http.Request) {
 	contextUser := contextGetAuthenticatedUser(r)
-	pathUserID := r.PathValue("id")
-
-	targetUserID, err := parseStringID(pathUserID)
-	if err != nil {
-		app.badRequest(w, r, err)
-		return
-	}
-
-	// Only allow user to update their own profile (adjust if admins allowed)
-	if contextUser == nil || contextUser.ID != targetUserID {
-		app.Unauthorized(w, r)
-		return
-	}
+	targetUserID := contextUser.ID
 
 	// Use pointers to detect presence vs. absence
 	var input struct {
@@ -70,7 +58,7 @@ func (app *Application) updateProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// If nothing to update, return 204 without hitting DB
-	if input.Nickname == nil && input.Bio == nil && input.Avatar == nil {
+	if input.Nickname == nil && input.Bio == nil && input.Avatar == nil && input.IsPublic == nil {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}

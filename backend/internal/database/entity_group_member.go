@@ -22,6 +22,20 @@ func (db *DB) InsertGroupMember(groupID int, userID int, role string) error {
 	return err
 }
 
+// InsertGroupMemberOrIgnore safely inserts membership without failing on duplicates.
+func (db *DB) InsertGroupMemberOrIgnore(groupID int, userID int, role string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+
+	query := `
+		INSERT OR IGNORE INTO group_members (group_id, user_id, role)
+		VALUES ($1, $2, $3)
+	`
+
+	_, err := db.ExecContext(ctx, query, groupID, userID, role)
+	return err
+}
+
 func (db *DB) IsGroupMember(groupID int, userID int) (bool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()

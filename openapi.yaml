@@ -318,6 +318,65 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
+  /protected/v1/users/{user_id}/unfollow:
+    post:
+      tags:
+        - Follow
+      summary: Unfollow user
+      description: Removes an accepted follow relationship between the authenticated user and the target user.
+      operationId: unfollowUser
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Unfollowed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: unfollowed
+        '400':
+          description: Invalid user ID
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /protected/v1/follow-requests:
+    get:
+      tags:
+        - Follow
+      summary: List pending follow requests
+      description: Returns pending follow requests targeting the authenticated user.
+      operationId: listPendingFollowRequests
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Pending follow requests
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  requests:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/FollowRequest'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
   /protected/v1/follow-requests/{request_id}:
     post:
       tags:
@@ -387,7 +446,10 @@ paths:
         - Posts
       summary: Create a new post
       description: |
-        Creates a new post. Posts can include images or GIFs. Content must not exceed 500 characters.
+        Creates a new post with optional media and privacy controls. Content must not exceed 500 characters. Privacy options:
+        - `public`: visible to everyone
+        - `almost_private`: visible to accepted followers only
+        - `private`: visible only to explicitly allowed follower IDs (`allowed_user_ids`)
       operationId: createPost
       security:
         - sessionAuth: []
@@ -404,6 +466,15 @@ paths:
                 file:
                   type: string
                   format: byte
+                visibility:
+                  type: string
+                  enum: [public, almost_private, private]
+                  default: public
+                allowed_user_ids:
+                  type: array
+                  items:
+                    type: integer
+                  description: Required when `visibility` is `private`; each user must already follow the creator.
               required:
                 - content
       responses:
@@ -423,6 +494,8 @@ paths:
                   content:
                     type: string
                   file:
+                    type: string
+                  visibility:
                     type: string
                   created_at:
                     type: string
@@ -1136,6 +1209,54 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '401':
+
+          /protected/v1/groups/{id}/events/{event_id}/rsvp:
+            post:
+              tags:
+                - Groups
+              summary: RSVP to group event
+              description: Allows a group member to set their RSVP status (going/not_going) for an event.
+              operationId: rsvpGroupEvent
+              security:
+                - sessionAuth: []
+              parameters:
+                - name: id
+                  in: path
+                  required: true
+                  description: Group ID
+                  schema:
+                    type: integer
+                - name: event_id
+                  in: path
+                  required: true
+                  description: Event ID
+                  schema:
+                    type: integer
+              requestBody:
+                required: true
+                content:
+                  application/json:
+                    schema:
+                      type: object
+                      properties:
+                        response:
+                          type: string
+                          enum: [going, not_going]
+                      required:
+                        - response
+              responses:
+                '200':
+                  description: RSVP recorded
+                '401':
+                  $ref: '#/components/responses/UnauthorizedError'
+                '404':
+                  description: Group or event not found
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/ErrorResponse'
+                '500':
+                  $ref: '#/components/responses/InternalServerError'
           $ref: '#/components/responses/UnauthorizedError'
         '403':
           description: Requester is not the group owner
@@ -1145,6 +1266,60 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: Group or user not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /protected/v1/groups/{group_id}/requests/{request_id}:
+    post:
+      tags:
+        - Groups
+      summary: Respond to group join/invite request
+      description: Allows the request target (group owner or invited user) to accept or decline a group join request or invitation.
+      operationId: respondGroupRequest
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: group_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: request_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                action:
+                  type: string
+                  enum: [accept, decline]
+              required:
+                - action
+      responses:
+        '200':
+          description: Request processed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: accepted
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          description: Request not found
           content:
             application/json:
               schema:
@@ -1707,32 +1882,32 @@ components:
     GroupEvent:
       type: object
       properties:
-        event_id:
+        id:
           type: integer
-          format: int64
         group_id:
           type: integer
-          format: int64
-        creator_id:
+        user_id:
           type: integer
-          format: int64
+          description: Creator user ID
         title:
           type: string
         description:
           type: string
-        event_date:
+        time:
           type: string
           format: date-time
-        created_at:
-          type: string
-          format: date-time
+        interested:
+          type: integer
+          description: Number of members marked as going
+        not_interested:
+          type: integer
+          description: Number of members marked as not going
       required:
-        - event_id
+        - id
         - group_id
-        - creator_id
+        - user_id
         - title
-        - event_date
-        - created_at
+        - time
 
     CreateGroupEventRequest:
       type: object
@@ -1743,13 +1918,13 @@ components:
         description:
           type: string
           description: Event description
-        event_date:
+        time:
           type: string
           format: date-time
           description: Date and time of the event
       required:
         - title
-        - event_date
+        - time
 
     UpdateJoinRequestRequest:
       type: object

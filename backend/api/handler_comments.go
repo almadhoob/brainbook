@@ -20,6 +20,17 @@ func (app *Application) getPostComments(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	viewer := contextGetAuthenticatedUser(r)
+	canView, err := app.DB.CanUserViewPost(viewer.ID, postID)
+	if err != nil {
+		app.serverError(w, r, err)
+		return
+	}
+	if !canView {
+		app.Unauthorized(w, r)
+		return
+	}
+
 	comments, err := app.DB.CommentsForPost(postID)
 	if err != nil {
 		app.serverError(w, r, err)

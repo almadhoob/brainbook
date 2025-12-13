@@ -4,15 +4,13 @@ import (
 	"fmt"
 	"net/http"
 
-	"brainbook-api/internal/database"
 	"brainbook-api/internal/response"
 )
 
 // fetchUserProfile handles GET /protected/v1/user/me
 // Returns current user's profile information
 func (app *Application) getUserProfile(w http.ResponseWriter, r *http.Request) {
-	// Retrieves user from context
-	contextUser := contextGetAuthenticatedUser(r)
+	viewer := contextGetAuthenticatedUser(r)
 	pathUserID := r.PathValue("id")
 
 	targetUserID, err := parseStringID(pathUserID)
@@ -21,92 +19,82 @@ func (app *Application) getUserProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	isUserIDMatching := contextUser.IsUserIDMatching(targetUserID)
+	targetUser, exists, err := app.DB.UserById(targetUserID)
+	if err != nil {
+		app.serverError(w, r, err)
+		return
+	}
+	if !exists {
+		app.notFound(w, r)
+		return
+	}
 
-	var profileUser *database.User
-	var posts []database.Post
-	var pendingFollowRequestsCount int
+	isSelf := viewer.ID == targetUserID
 
-	if isUserIDMatching {
-		// Target user exists
-		targetUser, exists, err := app.DB.UserById(targetUserID)
+	// Enforce private profile visibility
+	if !targetUser.IsPublic && !isSelf {
+		isFollower, err := app.DB.IsFollowing(viewer.ID, targetUserID)
 		if err != nil {
 			app.serverError(w, r, err)
 			return
 		}
-		if !exists {
-			app.notFound(w, r)
+		if !isFollower {
+			app.Unauthorized(w, r)
 			return
 		}
-
-		profileUser = targetUser
-
-	} else {
-		// Viewer is the same as target user
-		profileUser = contextUser
-		targetUserID = contextUser.ID
-
-	pendingFollowRequestsCount, err = app.DB.PendingFollowRequestsCount(targetUserID)
-	if err != nil {
-		app.serverError(w, r, err)
-		return
 	}
-	}
-// Retrieve posts visible to the context user from the target user including self
-	posts, err = app.DB.PostsVisibleFromUser(contextUser.ID, targetUserID)
+
+	posts, err := app.DB.PostsVisibleFromUser(viewer.ID, targetUserID)
 	if err != nil {
 		app.serverError(w, r, err)
 		return
 	}
 
-	/* If profile is private, check if context user if a follower (accepted in follow_request table).
-	   If not, respond with 401 Unauthorized. Refer to:
-	   github.com/0xdod/go-realworld/blob/master/conduit/user.go#L39*/
-
-	// TO DO: Create the two functions below. Kindly do not use AI as it is not needed!
-	followerCount, err := app.DB.FollowerCountByUserID(targetUserID)
+	followers, err := app.DB.FollowersByUserID(targetUserID)
 	if err != nil {
 		app.serverError(w, r, err)
 		return
 	}
 
-	followingCount, err := app.DB.FollowingCountByUserID(targetUserID)
+	following, err := app.DB.FollowingByUserID(targetUserID)
 	if err != nil {
 		app.serverError(w, r, err)
 		return
 	}
 
-	
+	pendingFollowRequestsCount := 0
+	if isSelf {
+		pendingFollowRequestsCount, err = app.DB.PendingFollowRequestsCount(targetUserID)
+		if err != nil {
+			app.serverError(w, r, err)
+			return
+		}
+	}
 
 	userProfileResponse := map[string]any{
-		"user_id":                       profileUser.ID,
-		"full_name":                     profileUser.FullName(),
-		"email":                         profileUser.Email,
-		"dob":                           profileUser.DOB,
-		"follower_count":                followerCount,
-		"following_count":               followingCount,
+		"user_id":                       targetUser.ID,
+		"full_name":                     targetUser.FullName(),
+		"email":                         targetUser.Email,
+		"dob":                           targetUser.DOB,
+		"is_public":                     targetUser.IsPublic,
+		"followers":                     followers,
+		"following":                     following,
 		"posts":                         posts,
 		"pending_follow_requests_count": pendingFollowRequestsCount,
-		/*Used in the frontend to determine when
-		  to display the follow/unfollow button*/
-		"is_self": isUserIDMatching,
+		"is_self":                       isSelf,
 	}
 
-	// Potentially empty values
-	if profileUser.Avatar != nil {
-		userProfileResponse["avatar"] = profileUser.Avatar
+	if targetUser.Avatar != nil {
+		userProfileResponse["avatar"] = targetUser.Avatar
+	}
+	if targetUser.Nickname != "" {
+		userProfileResponse["nickname"] = targetUser.Nickname
+	}
+	if targetUser.Bio != "" {
+		userProfileResponse["bio"] = targetUser.Bio
 	}
 
-	if profileUser.Nickname != "" {
-		userProfileResponse["nickname"] = profileUser.Nickname
-	}
-
-	if profileUser.Bio != "" {
-		userProfileResponse["bio"] = profileUser.Bio
-	}
-
-	err = response.JSON(w, http.StatusOK, userProfileResponse)
-	if err != nil {
+	if err := response.JSON(w, http.StatusOK, userProfileResponse); err != nil {
 		app.serverError(w, r, err)
 		return
 	}

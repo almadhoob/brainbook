@@ -69,17 +69,14 @@ func SendMessageHandler(event Event, c *Client) error {
 		return nil
 	}
 
-	// Check if receiver is online
+	// Attempt to deliver to receiver if online; otherwise fall back to notification only.
 	log.Printf("Looking for receiver client with ID: %d", chatevent.ReceiverID)
 	receiverClient := c.manager.getClientByUserID(chatevent.ReceiverID)
 	if receiverClient == nil {
-		log.Printf("Receiver client %d not found, sending RECEIVER_OFFLINE error", chatevent.ReceiverID)
-		c.sendErrorEventWithContext("RECEIVER_OFFLINE", "Recipient is not online", map[string]interface{}{
-			"receiver_id": chatevent.ReceiverID,
-		})
-		return nil
+		log.Printf("Receiver client %d not online; will rely on notification delivery", chatevent.ReceiverID)
+	} else {
+		log.Printf("Found receiver client %d, proceeding with message send", chatevent.ReceiverID)
 	}
-	log.Printf("Found receiver client %d, proceeding with message send", chatevent.ReceiverID)
 
 	// Generate single timestamp for consistency between database and client
 	currentDateTime := t.CurrentTime()
@@ -124,8 +121,10 @@ func SendMessageHandler(event Event, c *Client) error {
 	outgoingEvent.Payload = data
 	outgoingEvent.Type = EventReceiveMessage
 
-	// Send to receiver
-	receiverClient.egress <- outgoingEvent
+	// Send to receiver if connected
+	if receiverClient != nil {
+		receiverClient.egress <- outgoingEvent
+	}
 
 	// Send confirmation back to sender
 	c.egress <- outgoingEvent

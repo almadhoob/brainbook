@@ -64,12 +64,12 @@ INSERT INTO group_post_comments (group_post_id, user_id, content, file) VALUES
 (4, 2, 'Great tips, Eve!', NULL),
 (5, 1, 'Looking forward to the challenge.', NULL);
 
--- Follow Requests
-INSERT INTO follow_request (requester_id, target_id, status) VALUES
-(2, 1, 'accepted'),
-(3, 1, 'pending'),
-(4, 3, 'accepted'),
-(5, 2, 'accepted');
+-- include created_at for deterministic ordering with new column
+INSERT INTO follow_request (requester_id, target_id, status, created_at) VALUES
+(2, 1, 'accepted', '2025-12-01 09:00:00'),
+(3, 1, 'pending',   '2025-12-02 10:00:00'),
+(4, 3, 'accepted', '2025-12-03 11:00:00'),
+(5, 2, 'accepted', '2025-12-04 12:00:00');
 
 -- Conversations
 INSERT INTO conversation (user1_id, user2_id) VALUES

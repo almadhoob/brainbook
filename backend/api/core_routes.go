@@ -41,12 +41,16 @@ func (app *Application) routes() http.Handler {
 		PostMethod("/protected/v1/profile/update", app.updateProfile).
 		PostMethod("/protected/v1/notifications/{notification_id}/read", app.markNotificationRead).
 		PostMethod("/protected/v1/users/{user_id}/follow", app.sendFollowRequest).
+		PostMethod("/protected/v1/users/{user_id}/unfollow", app.unfollowUser).
 		PostMethod("/protected/v1/follow-requests/{request_id}", app.respondFollowRequest).
+		GetMethod("/protected/v1/follow-requests", app.getPendingFollowRequests).
 		PostMethod("/protected/v1/groups/{group_id}/create", app.requireGroupMember(app.groupPostCreate)).
 		PostMethod("/protected/v1/groups/{group_id}/posts/{post_id}/comments", app.requireGroupMember(app.createGroupPostComment)).
 		PostMethod("/protected/v1/groups/{group_id}/events", app.requireGroupOwner(app.createGroupEvent)).
+		PostMethod("/protected/v1/groups/{group_id}/events/{event_id}/rsvp", app.requireGroupMember(app.rsvpGroupEvent)).
 		PostMethod("/protected/v1/groups/{group_id}/join", app.withGroup(app.joinGroupRequest)).
-		PostMethod("/protected/v1/groups/{group_id}/send", app.requireGroupOwner(app.SendGroupInvite))
+		PostMethod("/protected/v1/groups/{group_id}/send", app.requireGroupOwner(app.SendGroupInvite)).
+		PostMethod("/protected/v1/groups/{group_id}/requests/{request_id}", app.withGroup(app.respondGroupRequest))
 
 	publicMux, guestMux, protectedMux := registry.GetMuxes()
 

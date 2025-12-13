@@ -59,6 +59,16 @@ type UserPatch struct {
 	Bio      *string `json:"bio"`
 }
 
+type PendingFollowRequest struct {
+	ID          int       `db:"id" json:"id"`
+	RequesterID int       `db:"requester_id" json:"requester_id"`
+	TargetID    int       `db:"target_id" json:"target_id"`
+	Status      string    `db:"status" json:"status"`
+	CreatedAt   time.Time `db:"created_at" json:"created_at"`
+
+	UserSummary
+}
+
 // Checks if the context user and target user are the same.
 func (user *User) IsUserIDMatching(targetUserID int) bool {
 	return user.ID == targetUserID
@@ -280,6 +290,37 @@ func (db *DB) UpdateFollowRequestStatus(id int, status string) error {
 
 	query := `UPDATE follow_request SET status = $1 WHERE id = $2`
 	_, err := db.ExecContext(ctx, query, status, id)
+	return err
+}
+
+// PendingFollowRequests returns incoming requests targeting the given user.
+func (db *DB) PendingFollowRequests(targetID int) ([]PendingFollowRequest, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+
+	query := `
+		SELECT fr.id, fr.requester_id, fr.target_id, fr.status, fr.created_at,
+		       u.id AS user_id, u.f_name, u.l_name, u.avatar
+		FROM follow_request fr
+		JOIN user u ON u.id = fr.requester_id
+		WHERE fr.target_id = $1 AND fr.status = 'pending'
+		ORDER BY fr.created_at ASC
+	`
+
+	var reqs []PendingFollowRequest
+	if err := db.SelectContext(ctx, &reqs, query, targetID); err != nil {
+		return nil, err
+	}
+	return reqs, nil
+}
+
+// DeleteFollow removes an accepted follow relationship.
+func (db *DB) DeleteFollow(requesterID, targetID int) error {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+
+	query := `DELETE FROM follow_request WHERE requester_id = $1 AND target_id = $2 AND status = 'accepted'`
+	_, err := db.ExecContext(ctx, query, requesterID, targetID)
 	return err
 }
 

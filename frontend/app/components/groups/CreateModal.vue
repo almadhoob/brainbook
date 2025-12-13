@@ -88,25 +88,23 @@ async function handleSubmit() {
 </script>
 
 <template>
-  <UModal v-model:open="open">
+  <UModal
+    v-model:open="open"
+    title="Create a group"
+    description="Provide a title and description for your new group."
+  >
     <UButton icon="i-lucide-plus">
       New group
     </UButton>
 
-    <template #header>
-      <h3 class="text-lg font-semibold">
-        Create a group
-      </h3>
-    </template>
-
     <template #body>
       <form class="space-y-4" @submit.prevent="handleSubmit">
-        <UFormGroup label="Title" :error="errors.title">
+        <UFieldGroup label="Title" :error="errors.title">
           <UInput v-model="form.title" placeholder="AI Researchers" />
-        </UFormGroup>
-        <UFormGroup label="Description" :error="errors.description">
+        </UFieldGroup>
+        <UFieldGroup label="Description" :error="errors.description">
           <UTextarea v-model="form.description" placeholder="Describe the purpose of your group" />
-        </UFormGroup>
+        </UFieldGroup>
         <div class="flex justify-end gap-2">
           <UButton
             type="button"

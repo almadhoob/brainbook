@@ -116,3 +116,39 @@ func (app *Application) respondFollowRequest(w http.ResponseWriter, r *http.Requ
 
 	_ = response.JSON(w, http.StatusOK, map[string]any{"status": newStatus})
 }
+
+// getPendingFollowRequests returns pending follow requests for the authenticated user.
+func (app *Application) getPendingFollowRequests(w http.ResponseWriter, r *http.Request) {
+	user := contextGetAuthenticatedUser(r)
+
+	reqs, err := app.DB.PendingFollowRequests(user.ID)
+	if err != nil {
+		app.serverError(w, r, err)
+		return
+	}
+
+	_ = response.JSON(w, http.StatusOK, map[string]any{"requests": reqs})
+}
+
+// unfollowUser removes an accepted follow relation.
+func (app *Application) unfollowUser(w http.ResponseWriter, r *http.Request) {
+	user := contextGetAuthenticatedUser(r)
+
+	targetIDStr := r.PathValue("user_id")
+	targetID, err := parseStringID(targetIDStr)
+	if err != nil || targetID <= 0 {
+		app.badRequest(w, r, fmt.Errorf("invalid user id: %s", targetIDStr))
+		return
+	}
+	if targetID == user.ID {
+		app.badRequest(w, r, fmt.Errorf("cannot unfollow yourself"))
+		return
+	}
+
+	if err := app.DB.DeleteFollow(user.ID, targetID); err != nil {
+		app.serverError(w, r, err)
+		return
+	}
+
+	_ = response.JSON(w, http.StatusOK, map[string]any{"status": "unfollowed"})
+}

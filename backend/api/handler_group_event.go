@@ -68,3 +68,56 @@ func (app *Application) listGroupEvents(w http.ResponseWriter, r *http.Request) 
 		app.serverError(w, r, err)
 	}
 }
+
+func (app *Application) rsvpGroupEvent(w http.ResponseWriter, r *http.Request) {
+	user := contextGetAuthenticatedUser(r)
+	group := contextGetGroup(r)
+
+	eventIDStr := r.PathValue("event_id")
+	eventID, err := parseStringID(eventIDStr)
+	if err != nil || eventID <= 0 {
+		app.badRequest(w, r, fmt.Errorf("invalid event id: %s", eventIDStr))
+		return
+	}
+
+	event, exists, err := app.DB.EventByID(eventID)
+	if err != nil {
+		app.serverError(w, r, err)
+		return
+	}
+	if !exists || event.GroupID != group.ID {
+		app.notFound(w, r)
+		return
+	}
+
+	var input struct {
+		Response string `json:"response"`
+	}
+	if err := request.DecodeJSON(w, r, &input); err != nil {
+		app.badRequest(w, r, err)
+		return
+	}
+
+	var going bool
+	switch input.Response {
+	case "going":
+		going = true
+	case "not_going":
+		going = false
+	default:
+		app.badRequest(w, r, fmt.Errorf("response must be 'going' or 'not_going'"))
+		return
+	}
+
+	if err := app.DB.UpsertEventRSVP(eventID, user.ID, going); err != nil {
+		app.serverError(w, r, err)
+		return
+	}
+
+	status := "not_going"
+	if going {
+		status = "going"
+	}
+
+	_ = response.JSON(w, http.StatusOK, map[string]any{"status": status})
+}

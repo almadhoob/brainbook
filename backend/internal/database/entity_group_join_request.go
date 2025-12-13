@@ -7,12 +7,39 @@ import (
 )
 
 type GroupJoinRequest struct {
-	GroupID   int    `db:"group_id" json:"group_id"`
-	RequestID int    `db:"request_id" json:"request_id"`
-	Status    string `db:"status" json:"status"`
-	CreatedAt string `db:"created_at" json:"created_at"`
+	GroupID     int    `db:"group_id" json:"group_id"`
+	RequestID   int    `db:"request_id" json:"request_id"`
+	RequesterID int    `db:"requester_id" json:"requester_id"`
+	TargetID    int    `db:"target_id" json:"target_id"`
+	Status      string `db:"status" json:"status"`
+	CreatedAt   string `db:"created_at" json:"created_at"`
 
 	UserSummary
+}
+
+// GroupJoinRequestByID fetches a request by its ID.
+func (db *DB) GroupJoinRequestByID(requestID int) (*GroupJoinRequest, bool, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+
+	query := `
+		SELECT gjr.id AS request_id, gjr.group_id, gjr.status, gjr.created_at,
+		       u.id AS user_id, u.f_name, u.l_name, u.avatar,
+		       gjr.requester_id, gjr.target_id
+		FROM group_join_requests gjr
+		JOIN user u ON u.id = gjr.requester_id
+		WHERE gjr.id = $1
+	`
+
+	var req GroupJoinRequest
+	if err := db.GetContext(ctx, &req, query, requestID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, false, nil
+		}
+		return nil, false, err
+	}
+
+	return &req, true, nil
 }
 
 func (db *DB) InsertJoinRequest(groupID int, requesterID int, targetID int) error {
@@ -61,6 +88,8 @@ func (db *DB) PendingJoinRequestsByGroupID(groupID int) ([]GroupJoinRequest, err
 	SELECT
 		gjr.id AS request_id,
 		gjr.group_id,
+		gjr.requester_id,
+		gjr.target_id,
 		u.id as user_id,
 		u.f_name,
 		u.l_name,

@@ -185,3 +185,74 @@ func (app *Application) SendGroupInvite(w http.ResponseWriter, r *http.Request) 
 
 	_ = response.JSON(w, http.StatusCreated, map[string]any{"status": "invite sent"})
 }
+
+// respondGroupRequest allows the request target (owner or invitee) to accept/decline.
+func (app *Application) respondGroupRequest(w http.ResponseWriter, r *http.Request) {
+	user := contextGetAuthenticatedUser(r)
+	group := contextGetGroup(r)
+
+	reqIDStr := r.PathValue("request_id")
+	reqID, err := parseStringID(reqIDStr)
+	if err != nil || reqID <= 0 {
+		app.badRequest(w, r, fmt.Errorf("invalid request id: %s", reqIDStr))
+		return
+	}
+
+	req, exists, err := app.DB.GroupJoinRequestByID(reqID)
+	if err != nil {
+		app.serverError(w, r, err)
+		return
+	}
+	if !exists || req.GroupID != group.ID {
+		app.notFound(w, r)
+		return
+	}
+
+	if req.TargetID != user.ID {
+		app.Unauthorized(w, r)
+		return
+	}
+
+	var input struct {
+		Action string `json:"action"`
+	}
+	if err := request.DecodeJSON(w, r, &input); err != nil {
+		app.badRequest(w, r, err)
+		return
+	}
+
+	var newStatus string
+	switch input.Action {
+	case "accept":
+		newStatus = "accepted"
+	case "decline":
+		newStatus = "declined"
+	default:
+		app.badRequest(w, r, fmt.Errorf("invalid action"))
+		return
+	}
+
+	// Determine who should be added as a member when accepted.
+	if newStatus == "accepted" {
+		joinerID := req.TargetID
+		if group.OwnerID == req.TargetID {
+			joinerID = req.RequesterID
+		}
+		if err := app.DB.InsertGroupMemberOrIgnore(group.ID, joinerID, "member"); err != nil {
+			app.serverError(w, r, err)
+			return
+		}
+	}
+
+	if err := app.DB.UpdateJoinRequestStatus(reqID, newStatus); err != nil {
+		app.serverError(w, r, err)
+		return
+	}
+
+	app.notifyUser(req.RequesterID, NotificationTypeGroupJoin, map[string]interface{}{
+		"group_id": group.ID,
+		"status":   newStatus,
+	})
+
+	_ = response.JSON(w, http.StatusOK, map[string]any{"status": newStatus})
+}

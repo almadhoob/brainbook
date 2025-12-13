@@ -23,8 +23,8 @@ type Client struct {
 
 	// Egress is used to avoid concurrent writes on the WebSocket
 	egress        chan Event
-	userID        int    
-	fullName      string 
+	userID        int
+	fullName      string
 	sessionToken  string
 	lastValidated time.Time
 }
@@ -36,7 +36,7 @@ func NewClient(conn *websocket.Conn, manager *WebsocketManager, fistName, lastNa
 		manager:       manager,
 		egress:        make(chan Event),
 		userID:        userID,
-		fullName:      fistName+" "+lastName,
+		fullName:      fistName + " " + lastName,
 		sessionToken:  sessionToken,
 		lastValidated: time.Now(), // Set initial validation time
 	}

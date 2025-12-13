@@ -5,7 +5,8 @@ import (
 
 	"brainbook-api/internal/response"
 )
-// for home feed 
+
+// for home feed
 func (app *Application) getPosts(w http.ResponseWriter, r *http.Request) {
 	contextUser := contextGetAuthenticatedUser(r)
 	// Retrieve paginated posts from the database

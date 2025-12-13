@@ -45,6 +45,7 @@ CREATE TABLE IF NOT EXISTS follow_request (
     requester_id INTEGER NOT NULL,
     target_id INTEGER NOT NULL,
     status CHECK( status IN ('pending','accepted','declined') ) NOT NULL DEFAULT 'pending',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (requester_id) REFERENCES user(id),
     FOREIGN KEY (target_id) REFERENCES user(id)
 );

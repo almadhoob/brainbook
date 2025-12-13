@@ -185,7 +185,7 @@ func (m *WebsocketManager) PushNotification(notification *db.Notification) {
 	payload := NotificationEvent{
 		ID:        notification.ID,
 		Type:      notification.Type,
-		Payload:   notification.Payload,
+		Payload:   json.RawMessage(notification.Payload),
 		IsRead:    notification.IsRead,
 		CreatedAt: notification.CreatedAt.Format(time.RFC3339),
 	}

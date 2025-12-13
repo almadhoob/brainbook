@@ -392,7 +392,7 @@ if (import.meta.client) {
                 class="max-w-[80%] rounded-2xl px-4 py-2 text-sm"
                 :class="message.isMine ? 'bg-primary text-white' : 'bg-white dark:bg-elevated/70 text-highlighted border border-default'"
               >
-                <p class="whitespace-pre-line break-words">
+                <p class="whitespace-pre-line wrap-break-word">
                   {{ message.content }}
                 </p>
                 <span class="block text-[11px] mt-1 text-right" :class="message.isMine ? 'text-white/70' : 'text-muted'">

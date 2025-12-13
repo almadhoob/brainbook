@@ -90,8 +90,8 @@ Create and interact with content:
 - Comment on posts with optional media
 - **Privacy Levels**:
   - **Public**: Visible to all users
-  - **Almost Private**: Visible only to followers
-  - **Private**: Visible only to selected followers
+  - **Almost Private**: Visible only to accepted followers
+  - **Private**: Visible only to explicitly allowed followers
 - Real-time updates and interactions
 
 ### 👨‍👩‍👧‍👦 Groups
@@ -115,10 +115,10 @@ Instant messaging with WebSocket technology:
 - **Private Messages**: Send messages to followers or users you're following
 - **Group Chat**: Common chat room for all group members
 - **Features**:
-  - Real-time message delivery
-  - Emoji support
+  - Real-time message delivery with offline fallback
   - Online/offline status indicators
   - Typing indicators
+  - Emoji support
   - Message history
 
 ### 🔔 Notifications

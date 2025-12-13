@@ -88,16 +88,14 @@ async function handleSubmit() {
 </script>
 
 <template>
-  <UModal v-model:open="open">
+  <UModal
+    v-model:open="open"
+    title="Create a group"
+    description="Provide a title and description for your new group."
+  >
     <UButton icon="i-lucide-plus">
       New group
     </UButton>
-
-    <template #header>
-      <h3 class="text-lg font-semibold">
-        Create a group
-      </h3>
-    </template>
 
     <template #body>
       <form class="space-y-4" @submit.prevent="handleSubmit">

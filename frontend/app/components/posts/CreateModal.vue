@@ -129,16 +129,14 @@ async function handleSubmit() {
 </script>
 
 <template>
-  <UModal v-model:open="open">
+  <UModal
+    v-model:open="open"
+    title="Share an update"
+    description="Write a post and optionally attach media."
+  >
     <UButton icon="i-lucide-plus">
       New post
     </UButton>
-
-    <template #header>
-      <h3 class="text-lg font-semibold">
-        Share an update
-      </h3>
-    </template>
 
     <template #body>
       <form class="space-y-4" @submit.prevent="handleSubmit">

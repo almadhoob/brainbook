@@ -166,22 +166,6 @@ const pagination = ref({ pageIndex: 0, pageSize: 10 })
         />
 
         <div class="flex flex-wrap items-center gap-1.5">
-          <UsersDeleteModal :count="table?.tableApi?.getFilteredSelectedRowModel().rows.length">
-            <UButton
-              v-if="table?.tableApi?.getFilteredSelectedRowModel().rows.length"
-              label="Delete"
-              color="error"
-              variant="subtle"
-              icon="i-lucide-trash"
-            >
-              <template #trailing>
-                <UKbd>
-                  {{ table?.tableApi?.getFilteredSelectedRowModel().rows.length }}
-                </UKbd>
-              </template>
-            </UButton>
-          </UsersDeleteModal>
-
           <USelect
             v-model="statusFilter"
             :items="[

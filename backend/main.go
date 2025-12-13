@@ -36,7 +36,7 @@ func run(logger *slog.Logger) error {
 
 	showVersion := flag.Bool("version", false, "display version and exit")
 	// recreateDB := flag.Bool("recreate", false, "recreate the database with sample data")
-		 flag.Parse()
+	flag.Parse()
 
 	if *showVersion {
 		fmt.Printf("version: %s\n", version.Get())

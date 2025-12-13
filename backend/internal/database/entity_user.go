@@ -323,6 +323,23 @@ func (db *DB) UserList(currentUserID int) ([]UserWithLastMessageTime, error) {
 			) AS last_message_time
 		FROM user u
 		WHERE u.id != $1
+			AND (
+				u.is_public = TRUE
+				OR EXISTS (
+					SELECT 1
+					FROM follow_request fr
+					WHERE fr.requester_id = $1
+						AND fr.target_id = u.id
+						AND fr.status = 'accepted'
+				)
+				OR EXISTS (
+					SELECT 1
+					FROM follow_request fr
+					WHERE fr.requester_id = u.id
+						AND fr.target_id = $1
+						AND fr.status = 'accepted'
+				)
+			)
 		ORDER BY 
 			CASE WHEN last_message_time IS NULL THEN 1 ELSE 0 END,
 			last_message_time DESC,

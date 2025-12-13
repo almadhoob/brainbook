@@ -107,6 +107,7 @@ const markSingleAsRead = async (notification: UiNotification, event: MouseEvent)
   <USlideover
     v-model:open="isNotificationsSlideoverOpen"
     title="Notifications"
+    description="Latest alerts, direct messages, and group updates"
   >
     <template #body>
       <div v-if="loading" class="py-12 flex items-center justify-center text-muted">

@@ -142,23 +142,23 @@ async function handleSubmit() {
 
     <template #body>
       <form class="space-y-4" @submit.prevent="handleSubmit">
-        <UFormGroup label="Content" :error="errors.content">
+        <UFieldGroup label="Content" :error="errors.content">
           <UTextarea
             v-model="form.content"
             placeholder="What's on your mind?"
             :rows="5"
             autoresize
           />
-        </UFormGroup>
+        </UFieldGroup>
 
-        <UFormGroup label="Attachment" :description="fileName || 'Optional image or file'" :error="errors.file">
+        <UFieldGroup label="Attachment" :description="fileName || 'Optional image or file'" :error="errors.file">
           <input
             type="file"
             accept="image/*,video/*"
             class="block w-full text-sm"
             @change="handleFileChange"
           >
-        </UFormGroup>
+        </UFieldGroup>
 
         <div class="flex justify-end gap-2">
           <UButton

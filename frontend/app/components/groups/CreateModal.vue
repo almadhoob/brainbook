@@ -101,12 +101,12 @@ async function handleSubmit() {
 
     <template #body>
       <form class="space-y-4" @submit.prevent="handleSubmit">
-        <UFormGroup label="Title" :error="errors.title">
+        <UFieldGroup label="Title" :error="errors.title">
           <UInput v-model="form.title" placeholder="AI Researchers" />
-        </UFormGroup>
-        <UFormGroup label="Description" :error="errors.description">
+        </UFieldGroup>
+        <UFieldGroup label="Description" :error="errors.description">
           <UTextarea v-model="form.description" placeholder="Describe the purpose of your group" />
-        </UFormGroup>
+        </UFieldGroup>
         <div class="flex justify-end gap-2">
           <UButton
             type="button"

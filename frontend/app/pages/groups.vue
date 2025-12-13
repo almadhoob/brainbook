@@ -953,16 +953,16 @@ function fileToBase64(file: File) {
                         </div>
                         <form v-if="isOwner" class="mt-4 space-y-3" @submit.prevent="submitEvent">
                           <div class="grid gap-3 lg:grid-cols-2">
-                            <UFormGroup label="Title">
+                            <UFieldGroup label="Title">
                               <UInput v-model="newEventForm.title" placeholder="Weekly sync" />
-                            </UFormGroup>
-                            <UFormGroup label="Day & time">
+                            </UFieldGroup>
+                            <UFieldGroup label="Day & time">
                               <UInput v-model="newEventForm.time" type="datetime-local" />
-                            </UFormGroup>
+                            </UFieldGroup>
                           </div>
-                          <UFormGroup label="Description">
+                          <UFieldGroup label="Description">
                             <UTextarea v-model="newEventForm.description" placeholder="Add context or an agenda" />
-                          </UFormGroup>
+                          </UFieldGroup>
                           <div class="flex justify-end">
                             <UButton type="submit" :loading="createEventLoading">
                               Schedule event
@@ -1020,9 +1020,9 @@ function fileToBase64(file: File) {
                           </h3>
                         </div>
                         <form class="mt-4 space-y-3" @submit.prevent="submitGroupPost">
-                          <UFormGroup label="Share an update">
+                          <UFieldGroup label="Share an update">
                             <UTextarea v-model="newPostForm.content" placeholder="What is new?" />
-                          </UFormGroup>
+                          </UFieldGroup>
                           <div class="flex flex-wrap items-center gap-3">
                             <UButton
                               type="button"

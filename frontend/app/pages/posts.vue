@@ -21,6 +21,25 @@ interface PostFeedItem {
   commentCount: number
 }
 
+interface ApiPostComment {
+  id?: number
+  user_id?: number
+  user_full_name?: string | null
+  user_avatar?: string | null
+  content?: string | null
+  created_at?: string | null
+}
+
+interface PostComment {
+  id: number | string
+  authorName: string
+  authorInitials: string
+  avatarSrc?: string
+  content: string
+  formattedCreatedAt: string
+}
+
+const toast = useToast()
 const runtimeConfig = useRuntimeConfig()
 const apiBase = typeof runtimeConfig.public?.apiBase === 'string' && runtimeConfig.public.apiBase.length > 0
   ? runtimeConfig.public.apiBase
@@ -61,6 +80,12 @@ const isInitialLoading = computed(() => status.value === 'pending' && !data.valu
 const isEmpty = computed(() => status.value === 'success' && !error.value && posts.value.length === 0)
 const isRefreshing = computed(() => status.value === 'pending')
 
+const commentsCache = reactive<Record<number | string, PostComment[]>>({})
+const commentsLoading = reactive<Record<number | string, boolean>>({})
+const commentDrafts = reactive<Record<number | string, string>>({})
+const commentSubmitting = reactive<Record<number | string, boolean>>({})
+const expandedPosts = ref(new Set<number | string>())
+
 const errorMessage = computed(() => {
   if (!error.value) return ''
   if (typeof error.value === 'string') return error.value
@@ -88,12 +113,117 @@ function formatTimestamp(timestamp?: string | null) {
   return parsed.toLocaleString()
 }
 
+function extractErrorMessage(reason: unknown) {
+  if (!reason) return ''
+  if (reason instanceof Error) return reason.message
+  if (typeof reason === 'string') return reason
+  if (typeof reason === 'object' && 'data' in (reason as Record<string, unknown>)) {
+    const data = (reason as Record<string, any>).data
+    if (data && typeof data === 'object' && 'error' in data && typeof (data as any).error === 'string') {
+      return (data as any).error
+    }
+  }
+  return ''
+}
+
+function normalizeComments(comments?: ApiPostComment[]): PostComment[] {
+  if (!Array.isArray(comments)) return []
+
+  return comments.map((comment, index) => {
+    const authorName = comment.user_full_name?.trim() || 'Unknown user'
+    const initials = authorName
+      .split(' ')
+      .filter(Boolean)
+      .map(chunk => chunk[0]?.toUpperCase())
+      .join('')
+      .slice(0, 2) || 'U'
+
+    return {
+      id: typeof comment.id === 'number' ? comment.id : `comment-${index}`,
+      authorName,
+      authorInitials: initials,
+      avatarSrc: binaryToDataUrl(comment.user_avatar, 'image/png'),
+      content: (comment.content ?? '').trim(),
+      formattedCreatedAt: formatTimestamp(comment.created_at)
+    }
+  })
+}
+
 function handlePostCreated() {
   refresh()
 }
 
 function handleRefreshClick(_: MouseEvent) {
   return refresh()
+}
+
+function isPostExpanded(postId: number | string) {
+  return typeof postId === 'number' && expandedPosts.value.has(postId)
+}
+
+function togglePostComments(postId: number | string) {
+  if (typeof postId !== 'number') return
+  const next = new Set(expandedPosts.value)
+  if (next.has(postId)) {
+    next.delete(postId)
+  } else {
+    next.add(postId)
+    if (!commentsCache[postId]) {
+      void loadPostComments(postId)
+    }
+  }
+  expandedPosts.value = next
+}
+
+async function loadPostComments(postId: number) {
+  commentsLoading[postId] = true
+  try {
+    const response = await $fetch<{ comments: ApiPostComment[] }>(`${apiBase}/protected/v1/posts/${postId}/comments`, {
+      credentials: 'include'
+    })
+    commentsCache[postId] = normalizeComments(response.comments)
+  } catch (error) {
+    toast.add({
+      title: 'Unable to load comments',
+      description: extractErrorMessage(error) || 'Please try again later.',
+      color: 'error'
+    })
+  } finally {
+    commentsLoading[postId] = false
+  }
+}
+
+async function submitComment(postId: number | string) {
+  if (typeof postId !== 'number') return
+  const draft = commentDrafts[postId]?.trim()
+  if (!draft) {
+    toast.add({ title: 'Comment required', color: 'error' })
+    return
+  }
+  commentSubmitting[postId] = true
+  try {
+    await $fetch(`${apiBase}/protected/v1/posts/${postId}/comments`, {
+      method: 'POST',
+      credentials: 'include',
+      body: { content: draft }
+    })
+    commentDrafts[postId] = ''
+    const rawPosts = data.value?.posts
+    const targetPost = Array.isArray(rawPosts) ? rawPosts.find(post => post.id === postId) : null
+    if (targetPost && typeof targetPost.comment_count === 'number') {
+      targetPost.comment_count += 1
+    }
+    await loadPostComments(postId)
+    toast.add({ title: 'Comment added' })
+  } catch (error) {
+    toast.add({
+      title: 'Unable to comment',
+      description: extractErrorMessage(error) || 'Please try again later.',
+      color: 'error'
+    })
+  } finally {
+    commentSubmitting[postId] = false
+  }
 }
 </script>
 
@@ -166,9 +296,51 @@ function handleRefreshClick(_: MouseEvent) {
             </div>
 
             <template #footer>
-              <div class="flex items-center gap-2 text-sm text-muted">
-                <UIcon name="i-lucide-message-square" class="size-4" />
-                <span>{{ post.commentCount }} comments</span>
+              <div class="space-y-3">
+                <div class="flex flex-wrap items-center gap-3 text-sm text-muted">
+                  <div class="flex items-center gap-1">
+                    <UIcon name="i-lucide-message-square" class="size-4" />
+                    <span>{{ post.commentCount }} comments</span>
+                  </div>
+                  <UButton size="xs" variant="ghost" @click="togglePostComments(post.id)">
+                    {{ isPostExpanded(post.id) ? 'Hide comments' : 'View comments' }}
+                  </UButton>
+                </div>
+
+                <div v-if="isPostExpanded(post.id)" class="space-y-3 rounded-2xl border border-default/60 p-4">
+                  <div v-if="commentsLoading[post.id]" class="text-sm text-muted">
+                    Loading comments...
+                  </div>
+                  <div v-else-if="!commentsCache[post.id]?.length" class="text-sm text-muted">
+                    No comments yet.
+                  </div>
+                  <div v-else class="space-y-3">
+                    <div v-for="comment in commentsCache[post.id]" :key="comment.id" class="rounded-xl border border-default/40 p-3">
+                      <div class="flex items-center gap-2 text-xs text-muted">
+                        <span class="font-medium text-default">{{ comment.authorName }}</span>
+                        <span>•</span>
+                        <span>{{ comment.formattedCreatedAt }}</span>
+                      </div>
+                      <p class="mt-2 text-sm">
+                        {{ comment.content }}
+                      </p>
+                    </div>
+                  </div>
+                  <div class="flex gap-2">
+                    <UTextarea
+                      v-model="commentDrafts[post.id]"
+                      placeholder="Write a comment"
+                      class="flex-1"
+                    />
+                    <UButton
+                      color="primary"
+                      :loading="commentSubmitting[post.id]"
+                      @click="submitComment(post.id)"
+                    >
+                      Send
+                    </UButton>
+                  </div>
+                </div>
               </div>
             </template>
           </UCard>

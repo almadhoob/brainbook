@@ -42,6 +42,8 @@ func (app *Application) getPostComments(w http.ResponseWriter, r *http.Request) 
 
 	for _, comment := range comments {
 		commentsWithFullName = append(commentsWithFullName, map[string]any{
+			"id":             comment.ID,
+			"user_id":        comment.UserSummary.ID,
 			"user_full_name": comment.FullName(),
 			"user_avatar":    comment.Avatar,
 			"content":        comment.Content,

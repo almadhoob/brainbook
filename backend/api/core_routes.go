@@ -24,7 +24,7 @@ func (app *Application) routes() http.Handler {
 		GetMethod("/protected/v1/session", app.getSessionProfile).
 		GetMethod("/protected/v1/private-messages/user/{id}", app.getConversation).
 		GetMethod("/protected/v1/posts", app.getPosts).
-		GetMethod("/protected/v1/comments", app.getPostComments).
+		GetMethod("/protected/v1/posts/{post_id}/comments", app.getPostComments).
 		GetMethod("/protected/v1/notifications", app.getNotifications).
 		GetMethod("/protected/v1/groups", app.getGroups).
 		PostMethod("/protected/v1/groups", app.createGroup).
@@ -36,7 +36,7 @@ func (app *Application) routes() http.Handler {
 		GetMethod("/protected/v1/groups/{group_id}/events", app.requireGroupMember(app.listGroupEvents)).
 		GetMethod("/protected/v1/groups/{group_id}/posts/{post_id}/comments", app.requireGroupMember(app.getGroupPostComments)).
 		PostMethod("/protected/v1/posts", app.createPost).
-		PostMethod("/protected/v1/comments", app.createComment).
+		PostMethod("/protected/v1/posts/{post_id}/comments", app.createComment).
 		PostMethod("/protected/v1/logout", app.logout).
 		PostMethod("/protected/v1/profile/update", app.updateProfile).
 		PostMethod("/protected/v1/notifications/{notification_id}/read", app.markNotificationRead).

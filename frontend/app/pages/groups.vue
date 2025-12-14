@@ -1,5 +1,8 @@
 <script setup lang="ts">
+import type { ReceiveGroupMessageEventPayload } from '~/types'
+
 const toast = useToast()
+const { session, hydrate: hydrateSession } = useSession()
 const runtimeConfig = useRuntimeConfig()
 const apiBase = typeof runtimeConfig.public?.apiBase === 'string' && runtimeConfig.public.apiBase.length > 0
   ? runtimeConfig.public.apiBase
@@ -84,6 +87,27 @@ interface GroupEventItem {
   notGoingCount: number
 }
 
+interface ApiGroupMessage {
+  id?: number
+  user_id?: number
+  f_name?: string | null
+  l_name?: string | null
+  avatar?: string | null
+  content?: string | null
+  created_at?: string | null
+}
+
+interface GroupChatMessage {
+  id: number | string
+  senderId: number
+  senderName: string
+  senderInitials: string
+  avatarSrc?: string
+  content: string
+  createdAtRaw: string
+  createdAtFormatted: string
+}
+
 interface GroupPostItem {
   id: number
   content: string
@@ -122,6 +146,9 @@ const tabOptions: { label: string, value: TabKey }[] = [
   { label: 'My groups', value: 'mine' }
 ]
 
+const sessionToken = useCookie<string | null>('session_token', { watch: false })
+const { connect: connectRealtime, groupMessageBus, sendGroupMessage, isUserOnline } = useRealtime()
+
 const activeTab = ref<TabKey>('all')
 const searchQuery = ref('')
 const selectedGroupId = ref<number | null>(null)
@@ -154,11 +181,20 @@ const newCommentDrafts = reactive<Record<number, string>>({})
 const commentSubmitting = reactive<Record<number, boolean>>({})
 const expandedPosts = ref(new Set<number>())
 
+const groupMessages = reactive<Record<number, GroupChatMessage[]>>({})
+const groupMessagesLoading = reactive<Record<number, boolean>>({})
+const groupMessageDrafts = reactive<Record<number, string>>({})
+const groupMessageSending = reactive<Record<number, boolean>>({})
+const activeGroupMessages = computed(() => (selectedGroupId.value ? groupMessages[selectedGroupId.value] ?? [] : []))
+
 const joinRequestState = reactive<Record<number, JoinState>>({})
 
 const currentUserId = ref<number | null>(null)
 
 function hydrateCurrentUserId() {
+  if (typeof session.value.user_id === 'number') {
+    currentUserId.value = session.value.user_id
+  }
   if (typeof window === 'undefined') return
   const stored = window.localStorage.getItem('user_id')
   if (!stored) return
@@ -169,11 +205,22 @@ function hydrateCurrentUserId() {
 }
 
 if (import.meta.client) {
+  hydrateSession()
   hydrateCurrentUserId()
+  connectRealtime()
+
+  const stopGroupMessages = groupMessageBus.on(handleIncomingGroupMessage)
+  onScopeDispose(stopGroupMessages)
 }
 
 onMounted(() => {
   hydrateCurrentUserId()
+})
+
+watch(() => session.value.user_id, (id) => {
+  if (typeof id === 'number') {
+    currentUserId.value = id
+  }
 })
 
 const {
@@ -349,6 +396,8 @@ async function loadGroupDetail(groupId: number) {
       if (postsResult.status === 'fulfilled') {
         posts = normalizePosts(postsResult.value.posts)
       }
+
+      void loadGroupMessages(groupId)
     }
 
     if (token === detailRequestToken) {
@@ -556,6 +605,65 @@ async function submitComment(postId: number) {
   }
 }
 
+async function loadGroupMessages(groupId: number) {
+  groupMessagesLoading[groupId] = true
+  try {
+    const response = await $fetch<{ messages: ApiGroupMessage[] }>(`${apiBase}/protected/v1/groups/${groupId}/messages?limit=50`, {
+      credentials: 'include'
+    })
+    groupMessages[groupId] = normalizeGroupMessages(response.messages)
+  } catch (error) {
+    toast.add({ title: 'Unable to load chat', description: extractErrorMessage(error) || 'Please try again later.', color: 'error' })
+  } finally {
+    groupMessagesLoading[groupId] = false
+  }
+}
+
+function handleIncomingGroupMessage(event: ReceiveGroupMessageEventPayload) {
+  const groupId = event.group_id
+  if (!groupId) return
+  const member = selectedGroupId.value === groupId ? groupDetail.value?.members.find(m => m.id === event.sender_id) : undefined
+  const message: GroupChatMessage = {
+    id: `${groupId}-${event.sent_at}-${event.sender_id}`,
+    senderId: event.sender_id,
+    senderName: member?.fullName || `User ${event.sender_id}`,
+    senderInitials: member?.initials || initialsFromName(member?.fullName || ''),
+    avatarSrc: member?.avatarSrc,
+    content: event.message,
+    createdAtRaw: event.sent_at,
+    createdAtFormatted: formatDate(event.sent_at)
+  }
+  appendGroupMessage(groupId, message)
+}
+
+async function sendGroupChatMessage() {
+  const groupId = selectedGroupId.value
+  if (!groupId || !showMemberContent.value) return
+  const draft = groupMessageDrafts[groupId]?.trim()
+  if (!draft) {
+    toast.add({ title: 'Message required', color: 'error' })
+    return
+  }
+  if (!sessionToken.value) {
+    toast.add({ title: 'Missing session', description: 'Please sign in again.', color: 'error' })
+    return
+  }
+  groupMessageSending[groupId] = true
+  try {
+    connectRealtime()
+    sendGroupMessage({
+      message: draft,
+      group_id: groupId,
+      session_token: sessionToken.value
+    })
+    groupMessageDrafts[groupId] = ''
+  } catch (error) {
+    toast.add({ title: 'Message not sent', description: extractErrorMessage(error) || 'Try again shortly.', color: 'error' })
+  } finally {
+    groupMessageSending[groupId] = false
+  }
+}
+
 async function submitEvent() {
   if (!isOwner.value || selectedGroupId.value == null) {
     return
@@ -752,6 +860,34 @@ function normalizeComments(comments?: ApiGroupComment[]): GroupComment[] {
       avatarSrc: toDataUrl(comment.avatar)
     }
   })
+}
+
+function normalizeGroupMessages(messages?: ApiGroupMessage[]): GroupChatMessage[] {
+  if (!Array.isArray(messages)) {
+    return []
+  }
+  return messages.map((message, index) => {
+    const senderName = buildFullName(message.f_name, message.l_name) || `User ${message.user_id ?? ''}`.trim()
+    return {
+      id: typeof message.id === 'number' ? message.id : `msg-${index}`,
+      senderId: typeof message.user_id === 'number' ? message.user_id : -1,
+      senderName,
+      senderInitials: initialsFromName(senderName),
+      avatarSrc: toDataUrl(message.avatar),
+      content: (message.content ?? '').trim(),
+      createdAtRaw: message.created_at ?? '',
+      createdAtFormatted: formatDate(message.created_at)
+    }
+  })
+}
+
+function appendGroupMessage(groupId: number, message: GroupChatMessage) {
+  const list = groupMessages[groupId] ?? []
+  const exists = list.some(m => m.senderId === message.senderId && m.content === message.content && m.createdAtRaw === message.createdAtRaw)
+  if (exists) {
+    return
+  }
+  groupMessages[groupId] = [...list, message]
 }
 
 function buildFullName(first?: string | null, last?: string | null) {
@@ -1125,6 +1261,83 @@ function fileToBase64(file: File) {
                               <p class="text-xs text-muted capitalize">
                                 {{ member.role }}
                               </p>
+                            </div>
+                          </div>
+                        </div>
+                      </section>
+
+                      <section>
+                        <div class="flex items-center justify-between">
+                          <h3 class="text-lg font-semibold">
+                            Group chat
+                          </h3>
+                          <UBadge :color="isUserOnline(currentUserId) ? 'primary' : 'neutral'" variant="subtle">
+                            {{ isUserOnline(currentUserId) ? 'Online' : 'Offline' }}
+                          </UBadge>
+                        </div>
+                        <div class="mt-4 rounded-2xl border border-default/60 p-4 space-y-3 bg-elevated/20">
+                          <div class="h-64 overflow-y-auto rounded-xl border border-default/60 bg-white/60 dark:bg-elevated/80 p-3 space-y-3">
+                            <div v-if="groupMessagesLoading[selectedGroupId || -1]" class="text-sm text-muted">
+                              Loading chat...
+                            </div>
+                            <div v-else-if="!activeGroupMessages.length" class="text-sm text-muted">
+                              No messages yet. Start the conversation!
+                            </div>
+                            <div v-else class="space-y-3">
+                              <div
+                                v-for="message in activeGroupMessages"
+                                :key="message.id"
+                                class="flex"
+                                :class="message.senderId === currentUserId ? 'justify-end' : 'justify-start'"
+                              >
+                                <div class="flex items-start gap-2 max-w-[80%]">
+                                  <UAvatar
+                                    v-if="message.senderId !== currentUserId"
+                                    :src="message.avatarSrc"
+                                    :text="message.senderInitials"
+                                    size="xs"
+                                  />
+                                  <div
+                                    class="rounded-2xl px-3 py-2 text-sm border border-default/60"
+                                    :class="message.senderId === currentUserId ? 'bg-primary text-white border-primary/70' : 'bg-white dark:bg-elevated/70 text-highlighted'"
+                                  >
+                                    <p class="font-medium text-xs">
+                                      {{ message.senderId === currentUserId ? 'You' : message.senderName }}
+                                    </p>
+                                    <p class="whitespace-pre-line">
+                                      {{ message.content }}
+                                    </p>
+                                    <p class="mt-1 text-[11px]" :class="message.senderId === currentUserId ? 'text-white/70' : 'text-muted'">
+                                      {{ message.createdAtFormatted }}
+                                    </p>
+                                  </div>
+                                  <UAvatar
+                                    v-if="message.senderId === currentUserId"
+                                    :src="message.avatarSrc"
+                                    :text="message.senderInitials"
+                                    size="xs"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          <div class="flex flex-col gap-2">
+                            <UTextarea
+                              v-model="groupMessageDrafts[selectedGroupId || -1]"
+                              :disabled="!selectedGroupId"
+                              placeholder="Send a message to the group"
+                              :rows="2"
+                            />
+                            <div class="flex justify-end">
+                              <UButton
+                                color="primary"
+                                :disabled="!selectedGroupId"
+                                :loading="selectedGroupId ? groupMessageSending[selectedGroupId] : false"
+                                icon="i-lucide-send"
+                                @click="sendGroupChatMessage"
+                              >
+                                Send
+                              </UButton>
                             </div>
                           </div>
                         </div>

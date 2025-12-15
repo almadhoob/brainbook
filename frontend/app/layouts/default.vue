@@ -70,30 +70,30 @@ const links = computed<NavigationMenuItem[][]>(() => [[{
   }]
 }], []])
 
-onMounted(async () => {
-  const cookie = useCookie('cookie-consent')
-  if (cookie.value === 'accepted') {
-    return
-  }
+// onMounted(async () => {
+//   const cookie = useCookie('cookie-consent')
+//   if (cookie.value === 'accepted') {
+//     return
+//   }
 
-  toast.add({
-    title: 'We use first-party cookies to enhance your experience on our website.',
-    duration: 0,
-    close: false,
-    actions: [{
-      label: 'Accept',
-      color: 'neutral',
-      variant: 'outline',
-      onClick: () => {
-        cookie.value = 'accepted'
-      }
-    }, {
-      label: 'Opt out',
-      color: 'neutral',
-      variant: 'ghost'
-    }]
-  })
-})
+//   toast.add({
+//     title: 'We use first-party cookies to enhance your experience on our website.',
+//     duration: 0,
+//     close: false,
+//     actions: [{
+//       label: 'Accept',
+//       color: 'neutral',
+//       variant: 'outline',
+//       onClick: () => {
+//         cookie.value = 'accepted'
+//       }
+//     }, {
+//       label: 'Opt out',
+//       color: 'neutral',
+//       variant: 'ghost'
+//     }]
+//   })
+// })
 </script>
 
 <template>
@@ -112,7 +112,7 @@ onMounted(async () => {
           variant="ghost"
           class="w-full justify-start px-4 py-3 data-[active=true]:bg-elevated"
         >
-          <span class="font-bold text-lg">BrainBook</span>
+        <span class="truncate">BrainBook</span>
         </UButton>
       </template>
 

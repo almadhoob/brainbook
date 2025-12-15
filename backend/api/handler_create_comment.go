@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
 
 	"brainbook-api/internal/request"
@@ -11,7 +12,6 @@ import (
 
 func (app *Application) createComment(w http.ResponseWriter, r *http.Request) {
 	var input struct {
-		PostID    int                 `json:"post_id"`
 		Content   string              `json:"content"`
 		File      []byte              `json:"file"`
 		Validator validator.Validator `json:"-"`
@@ -23,12 +23,19 @@ func (app *Application) createComment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	postIDStr := r.PathValue("post_id")
+	postID, err := parseStringID(postIDStr)
+	if err != nil || postID <= 0 {
+		app.badRequest(w, r, fmt.Errorf("invalid post ID: %s", postIDStr))
+		return
+	}
+
 	user := contextGetAuthenticatedUser(r)
 
-	input.Validator.Check(validator.NotBlank(input.Content), "Content must not be empty")
-	input.Validator.Check(validator.MaxRunes(input.Content, 500), "Content must not exceed 500 characters")
+	input.Validator.CheckField(validator.NotBlank(input.Content), "content", "Content must not be empty")
+	input.Validator.CheckField(validator.MaxRunes(input.Content, 500), "content", "Content must not exceed 500 characters")
 	if len(input.File) > 0 {
-		input.Validator.Check(len(input.File) <= 10_000_000, "File size must be 10MB or less")
+		input.Validator.CheckField(len(input.File) <= 10_000_000, "file", "File size must be 10MB or less")
 	}
 
 	if input.Validator.HasErrors() {
@@ -37,7 +44,7 @@ func (app *Application) createComment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Ensure commenter can view the target post respecting privacy settings
-	canView, err := app.DB.CanUserViewPost(user.ID, input.PostID)
+	canView, err := app.DB.CanUserViewPost(user.ID, postID)
 	if err != nil {
 		app.serverError(w, r, err)
 		return
@@ -50,7 +57,7 @@ func (app *Application) createComment(w http.ResponseWriter, r *http.Request) {
 	currentDateTime := time.CurrentTime()
 
 	// Insert the comment into the database
-	commentID, err := app.DB.InsertComment(input.PostID, user.ID, input.Content, input.File, currentDateTime)
+	commentID, err := app.DB.InsertComment(postID, user.ID, input.Content, input.File, currentDateTime)
 	if err != nil {
 		app.serverError(w, r, err)
 		return

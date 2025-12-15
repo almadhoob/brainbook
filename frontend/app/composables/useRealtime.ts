@@ -1,6 +1,6 @@
 import { createSharedComposable, useEventBus, useWebSocket } from '@vueuse/core'
 import type { WebSocketStatus } from '@vueuse/core'
-import type { ReceiveMessageEventPayload, WebsocketNotificationPayload } from '~/types'
+import type { ReceiveGroupMessageEventPayload, ReceiveMessageEventPayload, WebsocketNotificationPayload } from '~/types'
 
 interface UserStatusInfo {
   id: number
@@ -36,6 +36,7 @@ const _useRealtime = () => {
   const pendingQueue: string[] = []
 
   const directMessageBus = useEventBus<ReceiveMessageEventPayload>('ws:direct-message')
+  const groupMessageBus = useEventBus<ReceiveGroupMessageEventPayload>('ws:group-message')
   const notificationBus = useEventBus<WebsocketNotificationPayload>('ws:notification')
 
   const wsEndpoint = buildWsUrl(apiBase)
@@ -99,6 +100,9 @@ const _useRealtime = () => {
         case 'receive_message':
           directMessageBus.emit(parsed.payload as ReceiveMessageEventPayload)
           break
+        case 'receive_group_message':
+          groupMessageBus.emit(parsed.payload as ReceiveGroupMessageEventPayload)
+          break
         case 'notification':
           notificationBus.emit(parsed.payload as WebsocketNotificationPayload)
           break
@@ -131,6 +135,7 @@ const _useRealtime = () => {
   }
 
   const sendDirectMessage = (payload: Record<string, unknown>) => sendEvent('send_message', payload)
+  const sendGroupMessage = (payload: Record<string, unknown>) => sendEvent('send_group_message', payload)
   const sendTypingEvent = (payload: Record<string, unknown>) => sendEvent('send_typing', payload)
 
   return {
@@ -138,8 +143,10 @@ const _useRealtime = () => {
     connect,
     sendEvent,
     sendDirectMessage,
+    sendGroupMessage,
     sendTypingEvent,
     directMessageBus,
+    groupMessageBus,
     notificationBus,
     onlineUsers: readonly(onlineUsers),
     isUserOnline

@@ -18,6 +18,13 @@ export interface ReceiveMessageEventPayload {
   sent_at: string
 }
 
+export interface ReceiveGroupMessageEventPayload {
+  message: string
+  sender_id: number
+  group_id: number
+  sent_at: string
+}
+
 export interface WebsocketNotificationPayload {
   id: number
   type: string

@@ -6,6 +6,7 @@ import (
 )
 
 type Comment struct {
+	ID        int       `db:"id" json:"id"`
 	Content   string    `db:"content" json:"content"`
 	File      []byte    `db:"file" json:"file"`
 	CreatedAt time.Time `db:"created_at" json:"created_at"`
@@ -42,7 +43,9 @@ func (db *DB) CommentsForPost(postID int) ([]Comment, error) {
 
 	// SUGGESTION: Listing selected fields like this is worth considering (better readability).
 	query := `
-	SELECT u.f_name,
+	SELECT c.id,
+		u.id AS user_id,
+		u.f_name,
 		u.l_name,
 		u.avatar,
 		c.content,

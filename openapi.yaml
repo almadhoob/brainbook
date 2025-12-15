@@ -509,7 +509,56 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-  /protected/v1/comments:
+  /protected/v1/posts/{post_id}/comments:
+    get:
+      tags:
+        - Comments
+      summary: Fetch comments for a post
+      description: Lists comments attached to the provided post.
+      operationId: listPostComments
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: post_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Comments retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  comments:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        user_id:
+                          type: integer
+                        user_full_name:
+                          type: string
+                        user_avatar:
+                          type: string
+                        content:
+                          type: string
+                        file:
+                          type: string
+                          format: byte
+                        created_at:
+                          type: string
+                          format: date-time
+        '400':
+          description: Invalid post ID
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
     post:
       tags:
         - Comments
@@ -518,6 +567,12 @@ paths:
       operationId: createComment
       security:
         - sessionAuth: []
+      parameters:
+        - name: post_id
+          in: path
+          required: true
+          schema:
+            type: integer
       requestBody:
         required: true
         content:
@@ -525,8 +580,6 @@ paths:
             schema:
               type: object
               properties:
-                post_id:
-                  type: integer
                 content:
                   type: string
                   maxLength: 500
@@ -534,7 +587,6 @@ paths:
                   type: string
                   format: byte
               required:
-                - post_id
                 - content
       responses:
         '201':

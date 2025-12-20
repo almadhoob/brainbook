@@ -234,14 +234,9 @@ async function handleSubmit() {
     description="Only your followers can view limited posts."
   >
     <template #body>
-      <div class="space-y-3">
-        <p class="text-sm">
-          Select the followers you want to see this post
-        </p>
         <div class="flex justify-end">
           <UButton color="primary" @click="limitedInfoOpen = false">Got it</UButton>
         </div>
-      </div>
     </template>
   </UModal>
 </template>

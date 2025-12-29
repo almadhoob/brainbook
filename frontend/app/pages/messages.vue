@@ -17,6 +17,8 @@ if (import.meta.client) {
 const { status: realtimeStatus, connect, directMessageBus, sendDirectMessage, isUserOnline } = useRealtime()
 const sessionToken = useCookie<string | null>('session_token', { watch: false })
 
+const MAX_MESSAGE_LENGTH = 200
+
 type ChatPartner = {
   id: number
   name: string
@@ -240,10 +242,15 @@ const sendMessage = async () => {
 }
 
 const handleComposerKeydown = (event: KeyboardEvent) => {
-  if (event.key === 'Enter' && !event.shiftKey) {
+  if (event.key === 'Enter') {
     event.preventDefault()
     sendMessage()
   }
+}
+
+const handleMessageInput = (value: string) => {
+  const cleaned = value.replace(/\n/g, '').slice(0, MAX_MESSAGE_LENGTH)
+  newMessage.value = cleaned
 }
 
 const scrollConversationToBottom = () => {
@@ -406,18 +413,26 @@ if (import.meta.client) {
 
       <footer class="border-t border-default p-4">
         <form class="flex flex-col gap-2" @submit.prevent="sendMessage">
-          <UTextarea
-            v-model="newMessage"
-            placeholder="Type a message"
-            :disabled="!selectedPartnerId || sendingMessage"
-            :rows="2"
-            @keydown="handleComposerKeydown"
-          />
+          <div class="relative">
+            <UTextarea
+              :model-value="newMessage"
+              placeholder="Type a message (Press Enter to send)"
+              :maxlength="MAX_MESSAGE_LENGTH"
+              :disabled="!selectedPartnerId || sendingMessage"
+              autoresize
+              :rows="2"
+              @update:model-value="handleMessageInput"
+              @keydown="handleComposerKeydown"
+            />
+            <div class="absolute bottom-2 right-3 text-xs" :class="newMessage.length > MAX_MESSAGE_LENGTH - 20 ? 'text-error' : 'text-muted'">
+              {{ newMessage.length }}/{{ MAX_MESSAGE_LENGTH }}
+            </div>
+          </div>
           <div class="flex items-center justify-end gap-2">
             <UButton
               type="submit"
               color="primary"
-              :disabled="!selectedPartnerId"
+              :disabled="!selectedPartnerId || !newMessage.trim() || newMessage.length > MAX_MESSAGE_LENGTH"
               :loading="sendingMessage"
               icon="i-lucide-send"
               label="Send"

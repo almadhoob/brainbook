@@ -10,20 +10,7 @@ import (
 )
 
 func (app *Application) getMembers(w http.ResponseWriter, r *http.Request) {
-	ctx := contextGetAuthenticatedUser(r)
-	userID := ctx.ID
 	group := contextGetGroup(r)
-
-	ismember, err := app.DB.IsGroupMember(group.ID, userID)
-	if err != nil {
-		app.serverError(w, r, err)
-		return
-	}
-
-	if !ismember {
-		app.Unauthorized(w, r)
-		return
-	}
 
 	members, err := app.DB.GroupMembersByGroupID(group.ID)
 	if err != nil {

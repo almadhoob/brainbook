@@ -32,14 +32,30 @@ async function onSubmit(event: FormSubmitEvent<ProfileSchema>) {
   console.log(event.data)
 }
 
+const errors = reactive({ avatar: '' })
+const MAX_AVATAR_SIZE = 1 * 1024 * 1024
+
 function onFileChange(e: Event) {
+  errors.avatar = ''
   const input = e.target as HTMLInputElement
 
-  if (!input.files?.length) {
+  const file = input.files?.[0]
+  if (!file) {
+    profile.avatar = undefined
     return
   }
 
-  profile.avatar = URL.createObjectURL(input.files[0]!)
+  if (file.size > MAX_AVATAR_SIZE) {
+    errors.avatar = 'File exceeds 1 MB limit.'
+    input.value = ''
+    return
+  }
+
+  if (profile.avatar && profile.avatar.startsWith('blob:')) {
+    URL.revokeObjectURL(profile.avatar)
+  }
+
+  profile.avatar = URL.createObjectURL(file)
 }
 
 function onFileClick() {
@@ -117,6 +133,7 @@ function onFileClick() {
         name="avatar"
         label="Avatar"
         description="JPG, GIF or PNG. 1MB Max."
+        :error="errors.avatar"
         class="flex max-sm:flex-col justify-between sm:items-center gap-4"
       >
         <div class="flex flex-wrap items-center gap-3">

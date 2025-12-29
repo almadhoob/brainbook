@@ -53,22 +53,10 @@ func (app *Application) createGroupPostComment(w http.ResponseWriter, r *http.Re
 	ctx := contextGetAuthenticatedUser(r)
 	userID := ctx.ID
 
-	group := contextGetGroup(r)
-
 	postIDStr := r.PathValue("post_id")
 	postID, err := parseStringID(postIDStr)
 	if err != nil || postID <= 0 {
 		app.badRequest(w, r, fmt.Errorf("invalid post ID: %s", postIDStr))
-		return
-	}
-
-	isMember, err := app.DB.IsGroupMember(group.ID, userID)
-	if err != nil {
-		app.serverError(w, r, err)
-		return
-	}
-	if !isMember {
-		app.Unauthorized(w, r)
 		return
 	}
 

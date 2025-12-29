@@ -45,6 +45,11 @@ function extractErrorMessage(error: unknown): string {
   return ''
 }
 
+const MAX_TITLE = 20
+const MAX_DESCRIPTION = 50
+const titleCount = computed(() => form.title.length)
+const descriptionCount = computed(() => form.description.length)
+
 async function handleSubmit() {
   errors.title = ''
   errors.description = ''
@@ -57,6 +62,13 @@ async function handleSubmit() {
   }
   if (!description) {
     errors.description = 'Description is required.'
+  }
+  // Enforce max length as an extra safety measure
+  if (title.length > MAX_TITLE) {
+    errors.title = `Title must be at most ${MAX_TITLE} characters.`
+  }
+  if (description.length > MAX_DESCRIPTION) {
+    errors.description = `Description must be at most ${MAX_DESCRIPTION} characters.`
   }
   if (errors.title || errors.description) {
     return
@@ -99,12 +111,46 @@ async function handleSubmit() {
 
     <template #body>
       <form class="space-y-4" @submit.prevent="handleSubmit">
-        <UFieldGroup label="Title" :error="errors.title">
-          <UInput v-model="form.title" placeholder="AI Researchers" />
+        <UFieldGroup
+          label="Title"
+          :error="errors.title"
+          class="w-full max-w-none"
+          :ui="{ container: 'w-full flex flex-col', label: 'w-full', wrapper: 'w-full max-w-none' }"
+        >
+          <div class="relative w-full">
+            <UInput
+              v-model="form.title"
+              placeholder="e.g. AI Researchers, BioNauts, etc."
+              :maxlength="MAX_TITLE"
+              class="w-full"
+            />
+            <span class="pointer-events-none absolute bottom-2 right-2 text-xs text-neutral-500 z-10">
+              {{ titleCount }} / {{ MAX_TITLE }}
+            </span>
+          </div>
         </UFieldGroup>
-        <UFieldGroup label="Description" :error="errors.description">
-          <UTextarea v-model="form.description" placeholder="Describe the purpose of your group" />
+
+        <UFieldGroup
+          label="Description"
+          :error="errors.description"
+          class="w-full max-w-none"
+          :ui="{ container: 'w-full flex flex-col', label: 'w-full', wrapper: 'w-full max-w-none' }"
+        >
+          <div class="relative w-full">
+            <UTextarea
+              v-model="form.description"
+              placeholder="e.g. A friendly space to discuss all things AI!"
+              :maxlength="MAX_DESCRIPTION"
+              :rows="2"
+              autoresize
+              class="w-full"
+            />
+            <span class="pointer-events-none absolute bottom-2 right-2 text-xs text-neutral-500">
+              {{ descriptionCount }} / {{ MAX_DESCRIPTION }}
+            </span>
+          </div>
         </UFieldGroup>
+
         <div class="flex justify-end gap-2">
           <UButton
             type="button"

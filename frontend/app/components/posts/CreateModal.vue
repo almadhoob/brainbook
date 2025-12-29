@@ -21,6 +21,10 @@ const filePayload = ref<string | undefined>(undefined)
 const toast = useToast()
 const MAX_FILE_SIZE = 10 * 1024 * 1024
 
+// Content max length and counter (similar to group modal)
+const MAX_CONTENT = 350
+const contentCount = computed(() => form.content.length)
+
 const limitedInfoOpen = ref(false)
 
 watch(() => form.visibility, (v) => {
@@ -115,6 +119,11 @@ async function handleSubmit() {
     errors.content = 'Content is required.'
     return
   }
+  // Enforce max length as an extra safety measure (same style as group modal)
+  if (content.length > MAX_CONTENT) {
+    errors.content = `Content must be at most ${MAX_CONTENT} characters.`
+    return
+  }
 
   const visibility = form.visibility
   const allowedIds: number[] = []
@@ -179,12 +188,13 @@ async function handleSubmit() {
             <UTextarea
               v-model="form.content"
               placeholder="What's on your mind?"
-              :rows="5"
+              :rows="6"
+              :maxlength="MAX_CONTENT"
               autoresize
               class="w-full"
             />
-            <span class="absolute bottom-2 right-2 text-xs text-neutral-500">
-              {{ form.content.length }} chars
+            <span class="pointer-events-none absolute bottom-2 right-2 text-xs text-neutral-500 z-10">
+              {{ contentCount }} / {{ MAX_CONTENT }}
             </span>
           </div>
         </UFieldGroup>

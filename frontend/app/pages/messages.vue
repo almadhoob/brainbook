@@ -288,8 +288,9 @@ if (import.meta.client) {
 </script>
 
 <template>
-  <div class="flex h-full flex-col lg:flex-row lg:gap-6">
-    <section class="lg:w-80 w-full lg:flex lg:flex-col">
+  <UDashboardPanel grow>
+    <div class="flex h-full flex-row gap-3 p-4">
+      <section class="w-64 flex flex-col flex-shrink-0">
       <UDashboardPanel id="messages-list" :resizable="false" class="h-full">
         <UDashboardNavbar title="Messages">
           <template #leading>
@@ -358,7 +359,7 @@ if (import.meta.client) {
       </UDashboardPanel>
     </section>
 
-    <section class="flex-1 flex flex-col border border-default rounded-2xl overflow-hidden mt-6 lg:mt-0">
+    <section class="flex-1 flex flex-col border border-default rounded-2xl overflow-hidden">
       <header class="border-b border-default px-4 py-3 flex items-center justify-between">
         <div class="min-w-0">
           <p class="font-semibold text-lg text-highlighted truncate">
@@ -416,11 +417,12 @@ if (import.meta.client) {
           <div class="relative">
             <UTextarea
               :model-value="newMessage"
-              placeholder="Type a message (Press Enter to send)"
+              placeholder="Send a message (Press Enter to send)"
               :maxlength="MAX_MESSAGE_LENGTH"
               :disabled="!selectedPartnerId || sendingMessage"
               autoresize
               :rows="2"
+              class="w-full"
               @update:model-value="handleMessageInput"
               @keydown="handleComposerKeydown"
             />
@@ -428,18 +430,21 @@ if (import.meta.client) {
               {{ newMessage.length }}/{{ MAX_MESSAGE_LENGTH }}
             </div>
           </div>
-          <div class="flex items-center justify-end gap-2">
+          <div class="flex justify-end">
             <UButton
               type="submit"
               color="primary"
               :disabled="!selectedPartnerId || !newMessage.trim() || newMessage.length > MAX_MESSAGE_LENGTH"
               :loading="sendingMessage"
               icon="i-lucide-send"
-              label="Send"
-            />
+              @click="sendMessage"
+            >
+              Send
+            </UButton>
           </div>
         </form>
       </footer>
     </section>
-  </div>
+    </div>
+  </UDashboardPanel>
 </template>

@@ -276,9 +276,9 @@ const currentMessageDraft = computed({
           :description="extractErrorMessage(combinedGroupsError) || 'Please refresh the page.'"
         />
 
-        <div class="grid gap-6 lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)]">
+        <div class="grid gap-6 lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)] lg:h-[calc(100vh-12rem)]">
           <!-- Group List Sidebar -->
-          <UCard class="bg-elevated/40">
+          <UCard class="bg-elevated/40 flex flex-col h-full">
             <template #header>
               <div class="space-y-4">
                 <UInput
@@ -302,6 +302,7 @@ const currentMessageDraft = computed({
             </template>
 
             <template #default>
+              <div class="overflow-y-auto flex-1">
               <div v-if="listLoading" class="py-8 text-center text-muted">
                 Loading groups...
               </div>
@@ -350,11 +351,12 @@ const currentMessageDraft = computed({
                   </p>
                 </button>
               </div>
+              </div>
             </template>
           </UCard>
 
           <!-- Group Detail Content -->
-          <div class="space-y-4">
+          <div class="space-y-4 h-full overflow-y-auto">
             <UCard v-if="selectedSummary" class="bg-elevated/40">
               <template #header>
                 <div class="flex flex-wrap items-center justify-end gap-2">

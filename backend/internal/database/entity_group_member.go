@@ -66,11 +66,27 @@ func (db *DB) GroupMembersByGroupID(groupID int) ([]GroupMember, error) {
 			u.f_name,
 			u.l_name,
 			u.avatar,
+			COALESCE(gm.role, 'owner') as role,
+			COALESCE(gm.joined_at, g.created_at) as joined_at
+		FROM groups AS g
+		JOIN user AS u ON u.id = g.owner_id
+		LEFT JOIN group_members AS gm ON gm.group_id = g.id AND gm.user_id = u.id
+		WHERE g.id = $1
+		
+		UNION
+		
+		SELECT
+			u.id as user_id,
+			u.f_name,
+			u.l_name,
+			u.avatar,
 			gm.role,
 			gm.joined_at
 		FROM group_members AS gm
 		JOIN user AS u ON gm.user_id = u.id
-		WHERE gm.group_id = $1
+		JOIN groups AS g ON gm.group_id = g.id
+		WHERE gm.group_id = $1 AND gm.user_id != g.owner_id
+		ORDER BY joined_at ASC
 	`
 
 	var members []GroupMember

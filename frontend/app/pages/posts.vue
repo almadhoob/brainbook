@@ -225,6 +225,13 @@ async function submitComment(postId: number | string) {
     commentSubmitting[postId] = false
   }
 }
+
+// Character counter for comment box
+const MAX_COMMENT_LENGTH = 350
+function getCommentLength(postId: number | string) {
+  const val = commentDrafts[postId]
+  return typeof val === 'string' ? val.length : 0
+}
 </script>
 
 <template>
@@ -321,17 +328,25 @@ async function submitComment(postId: number | string) {
                         <span>•</span>
                         <span>{{ comment.formattedCreatedAt }}</span>
                       </div>
-                      <p class="mt-2 text-sm">
+                      <p class="mt-2 text-sm whitespace-pre-line break-words">
                         {{ comment.content }}
                       </p>
                     </div>
                   </div>
-                  <div class="flex gap-2">
-                    <UTextarea
-                      v-model="commentDrafts[post.id]"
-                      placeholder="Write a comment"
-                      class="flex-1"
-                    />
+                  <div class="flex gap-2 items-end">
+                    <div class="relative flex-1">
+                      <UTextarea
+                        v-model="commentDrafts[post.id]"
+                        placeholder="Write a comment"
+                        :maxlength="MAX_COMMENT_LENGTH"
+                        autoresize
+                        :rows="3"
+                        class="w-full"
+                      />
+                      <span class="pointer-events-none absolute bottom-2 right-2 text-xs text-neutral-500 z-10">
+                        {{ getCommentLength(post.id) }} / {{ MAX_COMMENT_LENGTH }}
+                      </span>
+                    </div>
                     <UButton
                       color="primary"
                       :loading="commentSubmitting[post.id]"

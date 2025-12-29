@@ -39,6 +39,14 @@ func (app *Application) requireGroupMember(next http.HandlerFunc) http.HandlerFu
 		}
 
 		group := contextGetGroup(r)
+
+		// Allow access if user is the group owner
+		if group.OwnerID == user.ID {
+			next(w, r)
+			return
+		}
+
+		// Otherwise, check if user is a member
 		isMember, err := app.DB.IsGroupMember(group.ID, user.ID)
 		if err != nil {
 			app.serverError(w, r, err)

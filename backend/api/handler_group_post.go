@@ -53,17 +53,6 @@ func (app *Application) groupPostCreate(w http.ResponseWriter, r *http.Request) 
 
 	group := contextGetGroup(r)
 
-	isMember, err := app.DB.IsGroupMember(userID, group.ID)
-	if err != nil {
-		app.serverError(w, r, err)
-		return
-	}
-
-	if !isMember {
-		app.Unauthorized(w, r)
-		return
-	}
-
 	//content string, image []byte, currentDateTime string, userID int, groupID int
 	postID, err := app.DB.InsertGroupPost(input.Content, input.File, t.CurrentTime(), userID, group.ID)
 	if err != nil {

@@ -17,6 +17,8 @@ if (import.meta.client) {
 const { status: realtimeStatus, connect, directMessageBus, sendDirectMessage, isUserOnline } = useRealtime()
 const sessionToken = useCookie<string | null>('session_token', { watch: false })
 
+const MAX_MESSAGE_LENGTH = 200
+
 type ChatPartner = {
   id: number
   name: string
@@ -240,10 +242,15 @@ const sendMessage = async () => {
 }
 
 const handleComposerKeydown = (event: KeyboardEvent) => {
-  if (event.key === 'Enter' && !event.shiftKey) {
+  if (event.key === 'Enter') {
     event.preventDefault()
     sendMessage()
   }
+}
+
+const handleMessageInput = (value: string) => {
+  const cleaned = value.replace(/\n/g, '').slice(0, MAX_MESSAGE_LENGTH)
+  newMessage.value = cleaned
 }
 
 const scrollConversationToBottom = () => {
@@ -281,8 +288,9 @@ if (import.meta.client) {
 </script>
 
 <template>
-  <div class="flex h-full flex-col lg:flex-row lg:gap-6">
-    <section class="lg:w-80 w-full lg:flex lg:flex-col">
+  <UDashboardPanel grow>
+    <div class="flex h-full flex-row gap-3 p-4">
+      <section class="w-64 flex flex-col flex-shrink-0">
       <UDashboardPanel id="messages-list" :resizable="false" class="h-full">
         <UDashboardNavbar title="Messages">
           <template #leading>
@@ -351,7 +359,7 @@ if (import.meta.client) {
       </UDashboardPanel>
     </section>
 
-    <section class="flex-1 flex flex-col border border-default rounded-2xl overflow-hidden mt-6 lg:mt-0">
+    <section class="flex-1 flex flex-col border border-default rounded-2xl overflow-hidden">
       <header class="border-b border-default px-4 py-3 flex items-center justify-between">
         <div class="min-w-0">
           <p class="font-semibold text-lg text-highlighted truncate">
@@ -406,25 +414,37 @@ if (import.meta.client) {
 
       <footer class="border-t border-default p-4">
         <form class="flex flex-col gap-2" @submit.prevent="sendMessage">
-          <UTextarea
-            v-model="newMessage"
-            placeholder="Type a message"
-            :disabled="!selectedPartnerId || sendingMessage"
-            :rows="2"
-            @keydown="handleComposerKeydown"
-          />
-          <div class="flex items-center justify-end gap-2">
+          <div class="relative">
+            <UTextarea
+              :model-value="newMessage"
+              placeholder="Send a message (Press Enter to send)"
+              :maxlength="MAX_MESSAGE_LENGTH"
+              :disabled="!selectedPartnerId || sendingMessage"
+              autoresize
+              :rows="2"
+              class="w-full"
+              @update:model-value="handleMessageInput"
+              @keydown="handleComposerKeydown"
+            />
+            <div class="absolute bottom-2 right-3 text-xs" :class="newMessage.length > MAX_MESSAGE_LENGTH - 20 ? 'text-error' : 'text-muted'">
+              {{ newMessage.length }}/{{ MAX_MESSAGE_LENGTH }}
+            </div>
+          </div>
+          <div class="flex justify-end">
             <UButton
               type="submit"
               color="primary"
-              :disabled="!selectedPartnerId"
+              :disabled="!selectedPartnerId || !newMessage.trim() || newMessage.length > MAX_MESSAGE_LENGTH"
               :loading="sendingMessage"
               icon="i-lucide-send"
-              label="Send"
-            />
+              @click="sendMessage"
+            >
+              Send
+            </UButton>
           </div>
         </form>
       </footer>
     </section>
-  </div>
+    </div>
+  </UDashboardPanel>
 </template>

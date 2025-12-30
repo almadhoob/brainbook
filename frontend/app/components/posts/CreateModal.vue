@@ -19,7 +19,20 @@ const errors = reactive({
 const fileName = ref('')
 const filePayload = ref<string | undefined>(undefined)
 const toast = useToast()
-const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB limit to mirror backend guard
+const MAX_FILE_SIZE = 10 * 1024 * 1024
+
+// Content max length and counter (similar to group modal)
+const MAX_CONTENT = 350
+const contentCount = computed(() => form.content.length)
+
+const limitedInfoOpen = ref(false)
+
+watch(() => form.visibility, (v) => {
+  if (v === 'private') {
+    limitedInfoOpen.value = true
+    form.visibility = 'almost_private'
+  }
+})
 
 watch(open, (value) => {
   if (!value) {
@@ -67,7 +80,7 @@ async function handleFileChange(event: Event) {
   }
 
   if (file.size > MAX_FILE_SIZE) {
-    errors.file = 'File exceeds 5 MB limit.'
+    errors.file = 'File exceeds 10 MB limit.'
     return
   }
 
@@ -104,6 +117,11 @@ async function handleSubmit() {
   const content = form.content.trim()
   if (!content) {
     errors.content = 'Content is required.'
+    return
+  }
+  // Enforce max length as an extra safety measure (same style as group modal)
+  if (content.length > MAX_CONTENT) {
+    errors.content = `Content must be at most ${MAX_CONTENT} characters.`
     return
   }
 
@@ -159,38 +177,39 @@ async function handleSubmit() {
     </UButton>
 
     <template #body>
-      <form class="space-y-4" @submit.prevent="handleSubmit">
-        <UFieldGroup label="Content" :error="errors.content">
-          <UTextarea
-            v-model="form.content"
-            placeholder="What's on your mind?"
-            :rows="5"
-            autoresize
-          />
+      <form class="space-y-4 w-full" @submit.prevent="handleSubmit">
+        <UFieldGroup
+          label="Content"
+          :error="errors.content"
+          class="w-full max-w-none"
+          :ui="{ container: 'w-full flex flex-col', label: 'w-full', wrapper: 'w-full max-w-none' }"
+        >
+          <div class="relative w-full">
+            <UTextarea
+              v-model="form.content"
+              placeholder="What's on your mind?"
+              :rows="6"
+              :maxlength="MAX_CONTENT"
+              autoresize
+              class="w-full"
+            />
+            <span class="pointer-events-none absolute bottom-2 right-2 text-xs text-neutral-500 z-10">
+              {{ contentCount }} / {{ MAX_CONTENT }}
+            </span>
+          </div>
         </UFieldGroup>
 
-        <UFieldGroup label="Privacy" description="Choose who can see this post">
+        <div class="mt-2 flex flex-col gap-2 items-start">
           <USelect
             v-model="form.visibility"
+            class="max-w-xs"
             :items="[
               { label: 'Public (everyone)', value: 'public' },
-              { label: 'Almost private (followers only)', value: 'almost_private' },
-              { label: 'Private (select followers)', value: 'private' }
+              { label: 'Private (followers only)', value: 'almost_private' },
+              { label: 'Limited (select followers)', value: 'private' }
             ]"
           />
-        </UFieldGroup>
-
-        <UFieldGroup
-          v-if="form.visibility === 'private'"
-          label="Allowed follower IDs"
-          description="Comma-separated follower user IDs who can view this post"
-          :error="errors.content"
-        >
-          <UInput
-            v-model="form.allowedUserIds"
-            placeholder="e.g., 12, 34, 56"
-          />
-        </UFieldGroup>
+        </div>
 
         <UFieldGroup label="Attachment" :description="fileName || 'Optional image or file'" :error="errors.file">
           <input
@@ -215,6 +234,19 @@ async function handleSubmit() {
           </UButton>
         </div>
       </form>
+    </template>
+  </UModal>
+
+  <!-- Popup shown when 'Limited' is selected -->
+  <UModal
+    v-model:open="limitedInfoOpen"
+    title="Limited visibility"
+    description="Only your followers can view limited posts."
+  >
+    <template #body>
+        <div class="flex justify-end">
+          <UButton color="primary" @click="limitedInfoOpen = false">Got it</UButton>
+        </div>
     </template>
   </UModal>
 </template>

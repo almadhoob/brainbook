@@ -70,10 +70,10 @@ func (db *DB) GroupsByUserID(userID int) ([]Group, error) {
 	var groups []Group
 
 	query := `
-		SELECT g.id, g.owner_id, g.title, g.description, g.created_at
+		SELECT DISTINCT g.id, g.owner_id, g.title, g.description, g.created_at
 		FROM groups AS g
-		JOIN group_members AS gm ON gm.group_id = g.id
-		WHERE gm.user_id = $1
+		LEFT JOIN group_members AS gm ON gm.group_id = g.id
+		WHERE g.owner_id = $1 OR gm.user_id = $1
 		ORDER BY g.title ASC`
 
 	err := db.SelectContext(ctx, &groups, query, userID)

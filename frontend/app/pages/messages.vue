@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { formatDistanceToNow } from 'date-fns'
+import { format } from 'date-fns'
 import type { ApiConversationMessage, ApiUserListItem, ReceiveMessageEventPayload } from '~/types'
 import { normalizeAvatar } from '~/utils'
 
@@ -26,6 +26,8 @@ type ChatPartner = {
   lastMessageTime?: string | null
   lastMessageSnippet?: string
   hasUnread?: boolean
+  follows?: boolean
+  followedBy?: boolean
 }
 
 type ConversationMessage = {
@@ -55,6 +57,10 @@ const filteredPartners = computed(() => {
 const selectedPartner = computed(() => chatPartners.value.find(partner => partner.id === selectedPartnerId.value) || null)
 const activeMessages = computed(() => (selectedPartnerId.value ? messagesByUser[selectedPartnerId.value] ?? [] : []))
 const isRealtimeConnected = computed(() => realtimeStatus.value === 'OPEN')
+const canMessageSelected = computed(() => {
+  if (!selectedPartner.value) return false
+  return Boolean(selectedPartner.value.follows || selectedPartner.value.followedBy)
+})
 
 const fetchPartners = async () => {
   loadingPartners.value = true
@@ -68,7 +74,9 @@ const fetchPartners = async () => {
       avatar: normalizeAvatar(user.user_avatar ?? null),
       lastMessageTime: user.last_message_time ?? null,
       lastMessageSnippet: undefined,
-      hasUnread: false
+      hasUnread: false,
+      follows: user.follows ?? false,
+      followedBy: user.followed_by ?? false
     }))
 
     const requested = Number(route.query.user)
@@ -163,6 +171,19 @@ const appendMessage = (partnerId: number, message: ConversationMessage) => {
 
 const handleIncomingMessage = (event: ReceiveMessageEventPayload) => {
   const partnerId = resolvePartnerId(event)
+  if (currentUserId.value && event.sender_id === currentUserId.value) {
+    const existing = messagesByUser[partnerId] ?? []
+    const trimmed = event.message.trim()
+    const cleaned = existing.filter(message =>
+      !(typeof message.id === 'string' &&
+        message.id.startsWith('local-') &&
+        message.isMine &&
+        message.content.trim() === trimmed)
+    )
+    if (cleaned.length !== existing.length) {
+      messagesByUser[partnerId] = cleaned
+    }
+  }
   const message: ConversationMessage = {
     id: `${partnerId}-${event.sent_at}-${event.sender_id}-${globalThis.crypto?.randomUUID?.() ?? Math.random()}`,
     senderId: event.sender_id,
@@ -201,6 +222,14 @@ const resolvePartnerId = (event: ReceiveMessageEventPayload) => {
 
 const sendMessage = async () => {
   if (!selectedPartnerId.value) return
+  if (!canMessageSelected.value) {
+    toast.add({
+      title: 'Message not allowed',
+      description: 'You can only message users who follow you or are followed by you.',
+      color: 'error'
+    })
+    return
+  }
   const trimmed = newMessage.value.trim()
   if (!trimmed) return
   if (!sessionToken.value) {
@@ -260,9 +289,13 @@ const scrollConversationToBottom = () => {
 
 const formatTimestamp = (timestamp?: string | null) => {
   if (!timestamp) return 'No activity'
-  const date = new Date(timestamp)
+  const trimmed = timestamp.trim()
+  const normalized = trimmed.includes('T')
+    ? trimmed
+    : trimmed.replace(' ', 'T') + 'Z'
+  const date = new Date(normalized)
   if (Number.isNaN(date.getTime())) return timestamp
-  return formatDistanceToNow(date, { addSuffix: true })
+  return format(date, 'HH:mm MM-dd')
 }
 
 watch(() => route.query.user, async (userId) => {
@@ -419,7 +452,7 @@ if (import.meta.client) {
               :model-value="newMessage"
               placeholder="Send a message (Press Enter to send)"
               :maxlength="MAX_MESSAGE_LENGTH"
-              :disabled="!selectedPartnerId || sendingMessage"
+              :disabled="!selectedPartnerId || sendingMessage || !canMessageSelected"
               autoresize
               :rows="2"
               class="w-full"
@@ -430,11 +463,14 @@ if (import.meta.client) {
               {{ newMessage.length }}/{{ MAX_MESSAGE_LENGTH }}
             </div>
           </div>
-          <div class="flex justify-end">
+          <div class="flex justify-between items-center">
+            <span v-if="selectedPartnerId && !canMessageSelected" class="text-xs text-muted">
+              You can only message users who follow you or are followed by you.
+            </span>
             <UButton
               type="submit"
               color="primary"
-              :disabled="!selectedPartnerId || !newMessage.trim() || newMessage.length > MAX_MESSAGE_LENGTH"
+              :disabled="!selectedPartnerId || !canMessageSelected || !newMessage.trim() || newMessage.length > MAX_MESSAGE_LENGTH"
               :loading="sendingMessage"
               icon="i-lucide-send"
               @click="sendMessage"

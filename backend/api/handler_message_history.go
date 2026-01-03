@@ -28,16 +28,6 @@ func (app *Application) getConversation(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	canMessage, err := app.DB.CanUsersMessage(contextUser.ID, targetUserID)
-	if err != nil {
-		app.serverError(w, r, err)
-		return
-	}
-	if !canMessage {
-		app.Unauthorized(w, r)
-		return
-	}
-
 	conversation, exists, err := app.DB.ConversationByUserIDs(contextUser.ID, targetUserID)
 	if err != nil {
 		app.serverError(w, r, err)
@@ -45,7 +35,7 @@ func (app *Application) getConversation(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if !exists {
-		// Responds with an empty slice when no conversation exists
+		// Respond with an empty slice when no conversation exists.
 		responseData := map[string]interface{}{
 			"messages":       []MessageHistoryResponse{},
 			"target_user_id": targetUserID,

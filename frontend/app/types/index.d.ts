@@ -3,6 +3,8 @@ export interface ApiUserListItem {
   user_full_name: string
   user_avatar?: string | null
   last_message_time?: string | null
+  follows?: boolean
+  followed_by?: boolean
 }
 
 export interface ApiConversationMessage {

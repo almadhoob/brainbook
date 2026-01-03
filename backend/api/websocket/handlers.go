@@ -72,6 +72,10 @@ func SendMessageHandler(event Event, c *Client) error {
 	// Attempt to deliver to receiver if online; otherwise fall back to notification only.
 	log.Printf("Looking for receiver client with ID: %d", chatevent.ReceiverID)
 	receiverClient := c.manager.getClientByUserID(chatevent.ReceiverID)
+	canDeliver, err := c.manager.DB.CanDeliverMessage(user.ID, chatevent.ReceiverID)
+	if err != nil {
+		return fmt.Errorf("failed to verify delivery permission: %v", err)
+	}
 	if receiverClient == nil {
 		log.Printf("Receiver client %d not online; will rely on notification delivery", chatevent.ReceiverID)
 	} else {
@@ -121,8 +125,8 @@ func SendMessageHandler(event Event, c *Client) error {
 	outgoingEvent.Payload = data
 	outgoingEvent.Type = EventReceiveMessage
 
-	// Send to receiver if connected
-	if receiverClient != nil {
+	// Send to receiver if connected and allowed to receive
+	if receiverClient != nil && canDeliver {
 		receiverClient.egress <- outgoingEvent
 	}
 

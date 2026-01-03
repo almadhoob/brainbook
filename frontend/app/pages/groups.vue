@@ -56,7 +56,8 @@ const {
   refresh: refreshAllGroups
 } = await useFetch<{ groups: ApiGroup[] }>(`${apiBase}/protected/v1/groups`, {
   credentials: 'include',
-  lazy: true
+  lazy: true,
+  server: false
 })
 
 const {
@@ -66,7 +67,8 @@ const {
   refresh: refreshMyGroups
 } = await useFetch<{ groups: ApiGroup[] }>(`${apiBase}/protected/v1/user/groups`, {
   credentials: 'include',
-  lazy: true
+  lazy: true,
+  server: false
 })
 
 const combinedGroupsError = computed(() => allGroupsError.value ?? myGroupsError.value ?? null)

@@ -47,7 +47,8 @@ const apiBase = typeof runtimeConfig.public?.apiBase === 'string' && runtimeConf
 
 const { data, status, error, refresh } = await useFetch<{ posts: ApiPost[] }>(`${apiBase}/protected/v1/posts`, {
   credentials: 'include',
-  lazy: true
+  lazy: true,
+  server: false
 })
 
 const posts = computed<PostFeedItem[]>(() => {

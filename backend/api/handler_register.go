@@ -58,6 +58,9 @@ func (app *Application) createUser(w http.ResponseWriter, r *http.Request) {
 
 	//Avatar validation
 	input.Validator.CheckField(len(input.Avatar) <= 5_000_000, "avatar", "Avatar size limit exceeded (5MB)")
+	if len(input.Avatar) > 0 {
+		input.Validator.CheckField(isAllowedImage(input.Avatar), "avatar", "Avatar must be JPEG, PNG, or GIF")
+	}
 
 	// Email validation
 	input.Validator.CheckField(validator.NotBlank(input.Email), "email", "Email is required")

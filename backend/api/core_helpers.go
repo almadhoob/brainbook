@@ -53,3 +53,13 @@ func parseQueryInt(r *http.Request, key string, fallback int) int {
 	}
 	return fallback
 }
+
+func isAllowedImage(data []byte) bool {
+	contentType := http.DetectContentType(data)
+	switch contentType {
+	case "image/jpeg", "image/png", "image/gif":
+		return true
+	default:
+		return false
+	}
+}

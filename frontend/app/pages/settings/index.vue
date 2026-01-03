@@ -33,7 +33,8 @@ async function onSubmit(event: FormSubmitEvent<ProfileSchema>) {
 }
 
 const errors = reactive({ avatar: '' })
-const MAX_AVATAR_SIZE = 1 * 1024 * 1024
+const MAX_AVATAR_SIZE = 5 * 1024 * 1024
+const ALLOWED_AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/gif']
 
 function onFileChange(e: Event) {
   errors.avatar = ''
@@ -45,8 +46,14 @@ function onFileChange(e: Event) {
     return
   }
 
+  if (!ALLOWED_AVATAR_TYPES.includes(file.type)) {
+    errors.avatar = 'Only JPEG, PNG, or GIF images are allowed.'
+    input.value = ''
+    return
+  }
+
   if (file.size > MAX_AVATAR_SIZE) {
-    errors.avatar = 'File exceeds 1 MB limit.'
+    errors.avatar = 'File exceeds 5 MB limit.'
     input.value = ''
     return
   }

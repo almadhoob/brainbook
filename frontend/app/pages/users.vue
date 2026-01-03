@@ -43,12 +43,13 @@ interface TableUser {
 
 const { data, status, error, refresh } = await useFetch<{ users: ApiUser[] }>(`${apiBase}/protected/v1/user-list`, {
   credentials: 'include',
-  lazy: true
+  lazy: true,
+  server: false
 })
 
 const { data: followRequestsData, refresh: refreshFollowRequests } = await useFetch<{ requests: ApiFollowRequest[] }>(
   `${apiBase}/protected/v1/follow-requests`,
-  { credentials: 'include', lazy: true }
+  { credentials: 'include', lazy: true, server: false }
 )
 
 const normalizedUsers = computed<TableUser[]>(() => {

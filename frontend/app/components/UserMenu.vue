@@ -38,18 +38,25 @@ const handleLogout = async () => {
       baseURL: apiBase,
       credentials: 'include'
     })
-    if (import.meta.client) {
-      window.localStorage.removeItem('user_id')
+  } catch (err: unknown) {
+    // Treat unauthorized/expired sessions as logged out
+    const status = typeof err === 'object' && err !== null && 'status' in err
+      ? (err as { status?: number }).status
+      : undefined
+    if (status !== 401 && status !== 403) {
+      toast.add({
+        title: 'Logout failed',
+        description: 'Something went wrong while signing out',
+        color: 'error'
+      })
+      console.error(err)
+      return
     }
-    await router.push('/signin')
-  } catch (err) {
-    toast.add({
-      title: 'Logout failed',
-      description: 'Something went wrong while signing out',
-      color: 'error'
-    })
-    console.error(err)
   }
+  if (import.meta.client) {
+    window.localStorage.removeItem('user_id')
+  }
+  await router.push('/signin')
 }
 
 const items = computed<DropdownMenuItem[][]>(() => [[{

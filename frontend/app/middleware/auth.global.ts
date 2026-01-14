@@ -3,8 +3,6 @@ import { navigateTo } from '#app'
 export default defineNuxtRouteMiddleware(async (to, _from) => {
   // Allow public pages
   const publicPages = ['/signin', '/signup']
-  if (publicPages.includes(to.path)) return
-
   // Check authentication by calling backend
   try {
     // Use a reliable endpoint that returns 401 for unauthenticated users
@@ -12,19 +10,26 @@ export default defineNuxtRouteMiddleware(async (to, _from) => {
     const apiBase = publicConfig.apiBase && typeof publicConfig.apiBase === 'string' && publicConfig.apiBase.length > 0
       ? publicConfig.apiBase
       : 'http://localhost:8080'
+    const headers = import.meta.server ? useRequestHeaders(['cookie']) : undefined
     // Use /protected/v1/user-list for authentication check
     await $fetch('/protected/v1/user-list', {
       method: 'GET',
       credentials: 'include',
-      baseURL: apiBase
+      baseURL: apiBase,
+      headers
     })
     // If request succeeds, user is authenticated
+    if (publicPages.includes(to.path)) {
+      return navigateTo('/')
+    }
   } catch (err: unknown) {
     // If error is 401 or 403, redirect to signin
     if (typeof err === 'object' && err !== null && 'status' in err) {
       const e = err as { status?: number }
       if (e.status === 401 || e.status === 403) {
-        return navigateTo('/signin')
+        if (!publicPages.includes(to.path)) {
+          return navigateTo('/signin')
+        }
       }
     }
     // For other errors, allow navigation (or handle as needed)

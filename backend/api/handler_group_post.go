@@ -43,6 +43,9 @@ func (app *Application) groupPostCreate(w http.ResponseWriter, r *http.Request) 
 
 	input.Validator.CheckField(validator.NotBlank(input.Content), "content", "Content must not be empty")
 	input.Validator.CheckField(validator.MaxRunes(input.Content, 500), "content", "Content must not exceed 500 characters")
+	if len(input.File) > 0 {
+		input.Validator.CheckField(len(input.File) <= 10_000_000, "file", "File size must be 10MB or less")
+	}
 	if input.Validator.HasErrors() {
 		app.failedValidation(w, r, input.Validator)
 		return

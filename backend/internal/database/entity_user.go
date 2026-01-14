@@ -482,15 +482,12 @@ func (db *DB) FollowingByUserID(userID int) ([]UserSummary, error) {
 // CanUsersMessage enforces the rule that at least one user must follow the other
 // or the receiver must have a public profile before direct messages are allowed.
 func (db *DB) CanUsersMessage(senderID, receiverID int) (bool, error) {
-	receiver, found, err := db.UserById(receiverID)
+	_, found, err := db.UserById(receiverID)
 	if err != nil {
 		return false, err
 	}
 	if !found {
 		return false, nil
-	}
-	if receiver.IsPublic {
-		return true, nil
 	}
 
 	followsForward, err := db.IsFollowing(senderID, receiverID)
@@ -507,4 +504,21 @@ func (db *DB) CanUsersMessage(senderID, receiverID int) (bool, error) {
 	}
 
 	return followsReverse, nil
+}
+
+// CanDeliverMessage allows real-time delivery when the sender follows the receiver
+// or the receiver has a public profile.
+func (db *DB) CanDeliverMessage(senderID, receiverID int) (bool, error) {
+	receiver, found, err := db.UserById(receiverID)
+	if err != nil {
+		return false, err
+	}
+	if !found {
+		return false, nil
+	}
+	if receiver.IsPublic {
+		return true, nil
+	}
+
+	return db.IsFollowing(senderID, receiverID)
 }

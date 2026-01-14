@@ -80,6 +80,17 @@ export function useGroupChat(apiBase: string, groupId: Ref<number | null>, curre
     }
 
     groupMessageSending[gid] = true
+    const optimisticMessage: GroupChatMessage = {
+      id: `local-${Date.now()}`,
+      senderId: currentUserId.value ?? -1,
+      senderName: 'You',
+      senderInitials: 'You',
+      avatarSrc: undefined,
+      content: draft,
+      createdAtRaw: new Date().toISOString(),
+      createdAtFormatted: formatDate(new Date().toISOString())
+    }
+    appendGroupMessage(gid, optimisticMessage)
     try {
       sendGroupMessage({
         message: draft,
@@ -93,6 +104,7 @@ export function useGroupChat(apiBase: string, groupId: Ref<number | null>, curre
         description: extractErrorMessage(error) || 'Try again shortly.',
         color: 'error'
       })
+      await loadMessages()
     } finally {
       groupMessageSending[gid] = false
     }
@@ -114,6 +126,18 @@ export function useGroupChat(apiBase: string, groupId: Ref<number | null>, curre
       createdAtFormatted: formatDate(event.sent_at)
     }
 
+    // Remove optimistic echo if it matches this incoming message.
+    const existing = groupMessages[gid] ?? []
+    const trimmed = event.message.trim()
+    const cleaned = existing.filter(m =>
+      !(typeof m.id === 'string' &&
+        m.id.startsWith('local-') &&
+        m.senderId === event.sender_id &&
+        m.content.trim() === trimmed)
+    )
+    if (cleaned.length !== existing.length) {
+      groupMessages[gid] = cleaned
+    }
     appendGroupMessage(gid, message)
   }
 

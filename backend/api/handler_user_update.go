@@ -49,6 +49,7 @@ func (app *Application) updateProfile(w http.ResponseWriter, r *http.Request) {
 			input.Avatar = nil
 		} else {
 			v.CheckField(len(*input.Avatar) <= maxAvatar, "avatar", "Avatar size limit exceeded (5MB)")
+			v.CheckField(isAllowedImage(*input.Avatar), "avatar", "Avatar must be JPEG, PNG, or GIF")
 		}
 	}
 

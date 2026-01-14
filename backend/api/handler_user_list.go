@@ -19,12 +19,26 @@ func (app *Application) getUserList(w http.ResponseWriter, r *http.Request) {
 
 	var usersWithFullName []map[string]any
 
-	for _, user := range users {
+	for _, listedUser := range users {
+		follows, err := app.DB.IsFollowing(user.ID, listedUser.ID)
+		if err != nil {
+			app.serverError(w, r, err)
+			return
+		}
+
+		followedBy, err := app.DB.IsFollowing(listedUser.ID, user.ID)
+		if err != nil {
+			app.serverError(w, r, err)
+			return
+		}
+
 		usersWithFullName = append(usersWithFullName, map[string]any{
-			"user_id":           user.ID,
-			"user_full_name":    user.FullName(),
-			"user_avatar":       user.Avatar,
-			"last_message_time": user.LastMessageTime,
+			"user_id":           listedUser.ID,
+			"user_full_name":    listedUser.FullName(),
+			"user_avatar":       listedUser.Avatar,
+			"last_message_time": listedUser.LastMessageTime,
+			"follows":           follows,
+			"followed_by":       followedBy,
 		})
 	}
 

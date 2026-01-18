@@ -29,22 +29,62 @@ func (app *Application) getUserProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	isSelf := viewer.ID == targetUserID
-
-	// Enforce private profile visibility
-	if !targetUser.IsPublic && !isSelf {
-		isFollower, err := app.DB.IsFollowing(viewer.ID, targetUserID)
+	isSelf := false
+	viewerID := 0
+	if viewer != nil {
+		viewerID = viewer.ID
+		isSelf = viewerID == targetUserID
+	}
+	isFollower := false
+	if viewer != nil && !targetUser.IsPublic && !isSelf {
+		isFollower, err = app.DB.IsFollowing(viewerID, targetUserID)
 		if err != nil {
 			app.serverError(w, r, err)
 			return
 		}
-		if !isFollower {
-			app.Unauthorized(w, r)
+	}
+
+	canViewPrivate := targetUser.IsPublic || isSelf || isFollower
+
+	followRequestStatus := ""
+	if viewer != nil && !isSelf {
+		status, exists, err := app.DB.FollowRequestStatus(viewerID, targetUserID)
+		if err != nil {
+			app.serverError(w, r, err)
 			return
+		}
+		if exists {
+			followRequestStatus = status
 		}
 	}
 
-	posts, err := app.DB.PostsVisibleFromUser(viewer.ID, targetUserID)
+	if !canViewPrivate {
+		userProfileResponse := map[string]any{
+			"user_id":               targetUser.ID,
+			"full_name":             targetUser.FullName(),
+			"is_public":             targetUser.IsPublic,
+			"is_self":               isSelf,
+			"follow_request_status": followRequestStatus,
+		}
+
+		if targetUser.Avatar != nil {
+			userProfileResponse["avatar"] = targetUser.Avatar
+		}
+		if targetUser.Nickname != "" {
+			userProfileResponse["nickname"] = targetUser.Nickname
+		}
+		if targetUser.Bio != "" {
+			userProfileResponse["bio"] = targetUser.Bio
+		}
+
+		if err := response.JSON(w, http.StatusOK, userProfileResponse); err != nil {
+			app.serverError(w, r, err)
+			return
+		}
+		return
+	}
+
+	posts, err := app.DB.PostsVisibleFromUser(viewerID, targetUserID)
 	if err != nil {
 		app.serverError(w, r, err)
 		return
@@ -60,18 +100,6 @@ func (app *Application) getUserProfile(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		app.serverError(w, r, err)
 		return
-	}
-
-	followRequestStatus := ""
-	if !isSelf {
-		status, exists, err := app.DB.FollowRequestStatus(viewer.ID, targetUserID)
-		if err != nil {
-			app.serverError(w, r, err)
-			return
-		}
-		if exists {
-			followRequestStatus = status
-		}
 	}
 
 	pendingFollowRequestsCount := 0

@@ -17,6 +17,9 @@ func (app *Application) routes() http.Handler {
 		PostMethod("/v1/login", app.createAuthenticationToken).
 		PostMethod("/v1/register", app.createUser)
 
+	// Guest routes (optional authentication)
+	registry.GetMethod("/guest/v1/profile/user/{id}", app.getUserProfile)
+
 	// Protected routes (authentication required)
 	registry.GetMethod("/protected/ws", app.ServeWebSocket).
 		GetMethod("/protected/v1/profile/user/{id}", app.getUserProfile).

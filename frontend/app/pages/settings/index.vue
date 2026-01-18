@@ -1,48 +1,136 @@
 <script setup lang="ts">
 import * as z from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
+import { normalizeAvatar } from '~/utils'
+
+interface ProfileResponse {
+  user_id?: number
+  full_name?: string
+  email?: string
+  nickname?: string
+  bio?: string
+  is_public?: boolean
+  avatar?: string | null
+}
 
 const fileRef = ref<HTMLInputElement>()
+const { session, hydrate } = useSession()
+const toast = useToast()
+
+const runtimeConfig = useRuntimeConfig()
+const apiBase = typeof runtimeConfig.public?.apiBase === 'string' && runtimeConfig.public.apiBase.length > 0
+  ? runtimeConfig.public.apiBase
+  : 'http://localhost:8080'
 
 const profileSchema = z.object({
-  name: z.string().min(2, 'Too short'),
-  email: z.string().email('Invalid email'),
-  username: z.string().min(2, 'Too short'),
-  avatar: z.string().optional(),
-  bio: z.string().optional()
+  nickname: z.string().max(50, 'Nickname must be 50 characters or less').optional(),
+  bio: z.string().max(500, 'Bio limit exceeded (500 characters)').optional(),
+  is_public: z.boolean().optional(),
+  avatar: z.string().optional()
 })
 
 type ProfileSchema = z.output<typeof profileSchema>
 
 const profile = reactive<Partial<ProfileSchema>>({
-  name: 'Sayed Waleed',
-  email: 'swaleed2000@gmail.com',
-  username: 'swaleed',
-  avatar: undefined,
-  bio: undefined
+  nickname: '',
+  bio: '',
+  is_public: true
 })
-const toast = useToast()
-async function onSubmit(event: FormSubmitEvent<ProfileSchema>) {
-  toast.add({
-    title: 'Success',
-    description: 'Your settings have been updated.',
-    icon: 'i-lucide-check',
-    color: 'success'
-  })
-  console.log(event.data)
-}
+
+const avatarPreview = ref<string | undefined>(undefined)
+const avatarPayload = ref<string | null>(null)
+
+const isLoadingProfile = ref(false)
+const isSaving = ref(false)
+const loadError = ref<string | null>(null)
 
 const errors = reactive({ avatar: '' })
 const MAX_AVATAR_SIZE = 5 * 1024 * 1024
 const ALLOWED_AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/gif']
 
-function onFileChange(e: Event) {
+async function loadProfile() {
+  const userId = session.value.user_id
+  if (!userId || isLoadingProfile.value) return
+
+  isLoadingProfile.value = true
+  loadError.value = null
+  try {
+    const data = await $fetch<ProfileResponse>(`${apiBase}/protected/v1/profile/user/${userId}`, {
+      credentials: 'include'
+    })
+
+    profile.nickname = data.nickname ?? ''
+    profile.bio = data.bio ?? ''
+    profile.is_public = typeof data.is_public === 'boolean' ? data.is_public : true
+    avatarPreview.value = normalizeAvatar(data.avatar)
+    avatarPayload.value = null
+  } catch (err) {
+    loadError.value = 'Unable to load profile settings.'
+    console.error(err)
+  } finally {
+    isLoadingProfile.value = false
+  }
+}
+
+async function onSubmit(_event: FormSubmitEvent<ProfileSchema>) {
+  if (isSaving.value) return
+  if (!session.value.user_id) {
+    toast.add({ title: 'Sign in required', description: 'Please sign in to update your profile.', color: 'error' })
+    return
+  }
+
+  const payload: Record<string, unknown> = {}
+  if (typeof profile.nickname === 'string' && profile.nickname.trim().length > 0) {
+    payload.nickname = profile.nickname.trim()
+  }
+  if (typeof profile.bio === 'string' && profile.bio.trim().length > 0) {
+    payload.bio = profile.bio.trim()
+  }
+  if (typeof profile.is_public === 'boolean') {
+    payload.is_public = profile.is_public
+  }
+  if (avatarPayload.value) {
+    payload.avatar = avatarPayload.value
+  }
+
+  isSaving.value = true
+  try {
+    await $fetch(`${apiBase}/protected/v1/profile/update`, {
+      method: 'POST',
+      credentials: 'include',
+      body: payload
+    })
+    toast.add({
+      title: 'Success',
+      description: 'Your settings have been updated.',
+      icon: 'i-lucide-check',
+      color: 'success'
+    })
+    avatarPayload.value = null
+    await hydrate(true)
+  } catch (err) {
+    toast.add({
+      title: 'Update failed',
+      description: 'We could not update your profile settings.',
+      color: 'error'
+    })
+    console.error(err)
+  } finally {
+    isSaving.value = false
+  }
+}
+
+function toBase64Payload(dataUrl: string) {
+  const parts = dataUrl.split(',')
+  return parts.length > 1 ? parts[1] : dataUrl
+}
+
+async function onFileChange(e: Event) {
   errors.avatar = ''
   const input = e.target as HTMLInputElement
 
   const file = input.files?.[0]
   if (!file) {
-    profile.avatar = undefined
     return
   }
 
@@ -58,15 +146,23 @@ function onFileChange(e: Event) {
     return
   }
 
-  if (profile.avatar && profile.avatar.startsWith('blob:')) {
-    URL.revokeObjectURL(profile.avatar)
-  }
+  const dataUrl = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result))
+    reader.onerror = () => reject(new Error('Unable to read file'))
+    reader.readAsDataURL(file)
+  })
 
-  profile.avatar = URL.createObjectURL(file)
+  avatarPreview.value = dataUrl
+  avatarPayload.value = toBase64Payload(dataUrl)
 }
 
 function onFileClick() {
   fileRef.value?.click()
+}
+
+if (import.meta.client) {
+  hydrate(true).then(loadProfile)
 }
 </script>
 
@@ -91,62 +187,43 @@ function onFileClick() {
         color="neutral"
         type="submit"
         class="w-fit lg:ms-auto"
+        :loading="isSaving"
       />
     </UPageCard>
 
     <UPageCard variant="subtle">
       <UFormField
-        name="name"
-        label="Name"
-        description="Will appear on receipts, invoices, and other communication."
-        required
-        class="flex max-sm:flex-col justify-between items-start gap-4"
-      >
-        <UInput
-          v-model="profile.name"
-          autocomplete="off"
-        />
-      </UFormField>
-      <USeparator />
-      <UFormField
-        name="email"
-        label="Email"
-        description="Used to sign in, for email receipts and product updates."
-        required
-        class="flex max-sm:flex-col justify-between items-start gap-4"
-      >
-        <UInput
-          v-model="profile.email"
-          type="email"
-          autocomplete="off"
-        />
-      </UFormField>
-      <USeparator />
-      <UFormField
-        name="username"
+        name="nickname"
         label="Username"
-        description="Your unique username for logging in and your profile URL."
-        required
+        description="Your unique username for your profile URL."
         class="flex max-sm:flex-col justify-between items-start gap-4"
       >
         <UInput
-          v-model="profile.username"
-          type="username"
+          v-model="profile.nickname"
           autocomplete="off"
         />
+      </UFormField>
+      <USeparator />
+      <UFormField
+        name="is_public"
+        label="Profile visibility"
+        description="Control who can view your profile details."
+        class="flex max-sm:flex-col justify-between items-start gap-4"
+      >
+        <USwitch v-model="profile.is_public" />
       </UFormField>
       <USeparator />
       <UFormField
         name="avatar"
         label="Avatar"
-        description="JPG, GIF or PNG. 1MB Max."
+        description="JPG, GIF or PNG. 5MB Max."
         :error="errors.avatar"
         class="flex max-sm:flex-col justify-between sm:items-center gap-4"
       >
         <div class="flex flex-wrap items-center gap-3">
           <UAvatar
-            :src="profile.avatar"
-            :alt="profile.name"
+            :src="avatarPreview"
+            :alt="profile.nickname || session.full_name"
             size="lg"
           />
           <UButton

@@ -132,6 +132,47 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
+  /guest/v1/profile/user/{id}:
+    get:
+      tags:
+        - Profile
+      summary: Get user profile (guest)
+      description: |
+        Retrieves user profile information. Authentication is optional; unauthenticated
+        requests receive public profile details only. If the target user has a private
+        profile and the requester is not an accepted follower, returns a limited profile
+        payload without sensitive fields (no email, date of birth, followers, following, or posts).
+      operationId: getUserProfileGuest
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: User ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: User profile retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileResponse'
+        '400':
+          description: Invalid user ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
   /protected/v1/profile/user/{id}:
     get:
       tags:
@@ -140,7 +181,8 @@ paths:
       description: |
         Retrieves comprehensive user profile information including follower/following counts 
         and user posts. If the target user has a private profile and the requester is not 
-        an accepted follower, returns 401 Unauthorized.
+        an accepted follower, returns a limited profile payload without sensitive fields
+        (no email, date of birth, followers, following, or posts).
       operationId: getUserProfile
       security:
         - sessionAuth: []
@@ -220,7 +262,9 @@ paths:
       tags:
         - Follow
       summary: Get user followers
-      description: Retrieves a list of users who follow the specified user
+      description: |
+        Retrieves a list of users who follow the specified user. For private profiles, 
+        non-followers receive an empty list.
       operationId: getUserFollowers
       security:
         - sessionAuth: []

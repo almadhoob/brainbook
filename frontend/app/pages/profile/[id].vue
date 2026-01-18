@@ -73,7 +73,7 @@ const {
 } = useFollowers(apiBase, normalizedProfileId)
 
 const { data, status, error, refresh } = await useFetch<ProfileResponse>(
-  () => `${apiBase}/protected/v1/profile/user/${profileId.value}`,
+  () => `${apiBase}/guest/v1/profile/user/${profileId.value}`,
   {
     credentials: 'include',
     lazy: true,
@@ -93,12 +93,19 @@ const initials = computed(() => {
   return parts.map(part => part[0]?.toUpperCase()).join('').slice(0, 2)
 })
 
-const isLoading = computed(() => status.value === 'pending' && !profile.value)
+const isLoading = computed(() => !error.value && !profile.value)
 const isSelf = computed(() => Boolean(profile.value?.is_self))
 const isFollowing = computed(() => {
   const currentId = session.value.user_id
   if (!currentId) return false
   return followers.value.some(follower => follower.user_id === currentId)
+})
+const isLimitedProfile = computed(() => {
+  if (!profile.value) return false
+  if (isSelf.value || profile.value.is_public) return false
+  const hasEmail = typeof profile.value.email === 'string' && profile.value.email.length > 0
+  const hasDob = typeof profile.value.dob === 'string' && profile.value.dob.length > 0
+  return !(hasEmail || hasDob)
 })
 
 const isRequestPending = computed(() => {
@@ -143,7 +150,7 @@ const errorMessage = computed(() => {
   if (typeof error.value === 'object' && error.value !== null) {
     const statusCode = 'status' in error.value ? (error.value as { status?: number }).status : undefined
     if (statusCode === 401 || statusCode === 403) {
-      return 'This profile is private. Follow the user to request access.'
+      return 'This profile is private. Send a follow request to see more.'
     }
     if ('statusMessage' in error.value && typeof (error.value as { statusMessage?: string }).statusMessage === 'string') {
       return (error.value as { statusMessage?: string }).statusMessage as string
@@ -278,6 +285,10 @@ function handleRefresh() {
             </div>
           </div>
 
+          <div v-if="isLimitedProfile" class="mt-4 rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm text-primary">
+            This is a private profile. Follow to unlock full details and posts.
+          </div>
+
           <div class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div class="rounded-lg border border-default/60 p-4">
               <p class="text-xs text-muted">
@@ -315,7 +326,7 @@ function handleRefresh() {
         </UCard>
 
         <div class="grid gap-4 lg:grid-cols-3">
-          <UCard class="lg:col-span-1">
+          <UCard v-if="!isLimitedProfile" class="lg:col-span-1">
             <template #header>
               <p class="text-sm font-semibold">
                 About

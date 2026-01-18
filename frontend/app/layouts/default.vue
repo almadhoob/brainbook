@@ -55,12 +55,6 @@ const links = computed<NavigationMenuItem[][]>(() => [[{
       open.value = false
     }
   }, {
-    label: 'Notifications',
-    to: '/settings/notifications',
-    onSelect: () => {
-      open.value = false
-    }
-  }, {
     label: 'Security',
     to: '/settings/security',
     onSelect: () => {

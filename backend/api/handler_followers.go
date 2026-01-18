@@ -37,7 +37,10 @@ func (app *Application) getUserFollowers(w http.ResponseWriter, r *http.Request)
 			return
 		}
 		if !isFollower {
-			app.Unauthorized(w, r)
+			if err := response.JSON(w, http.StatusOK, map[string]any{"followers": []any{}}); err != nil {
+				app.serverError(w, r, err)
+				return
+			}
 			return
 		}
 	}

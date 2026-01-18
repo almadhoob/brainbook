@@ -145,7 +145,7 @@ export function useGroupEvents(apiBase: string, groupId: Ref<number | null>, isO
   function normalizeEvents(events?: ApiGroupEvent[]): GroupEventItem[] {
     if (!Array.isArray(events)) return []
 
-    return events.map((event) => ({
+    return events.map(event => ({
       id: typeof event.id === 'number' ? event.id : Math.random(),
       title: (event.title ?? '').trim() || 'Untitled event',
       description: (event.description ?? '').trim(),

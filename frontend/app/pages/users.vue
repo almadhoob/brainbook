@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import { getPaginationRowModel } from '@tanstack/table-core'
-import upperFirst from 'lodash/upperFirst'
 
 const UAvatar = resolveComponent('UAvatar')
 const UButton = resolveComponent('UButton')
@@ -16,6 +15,11 @@ const statusFilter = ref('all')
 
 const config = useRuntimeConfig()
 const apiBase = config.public?.apiBase || 'http://localhost:8080'
+
+function upperFirst(value: string) {
+  if (!value) return ''
+  return value[0]?.toUpperCase() + value.slice(1)
+}
 
 interface ApiUser {
   user_id?: number

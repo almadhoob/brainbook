@@ -5,19 +5,18 @@ interface Props {
   members: GroupMember[]
   membersLoading: boolean
   isOwner: boolean
-  ownerRequestResponse: {
-    requestId: string
-    action: 'accept' | 'decline'
-    loading: boolean
-  }
 }
 
 interface Emits {
-  (e: 'respond-request'): void
-  (e: 'refresh-members'): void
+  (e: 'respond-request' | 'refresh-members'): void
 }
 
 defineProps<Props>()
+const ownerRequestResponse = defineModel<{
+  requestId: string
+  action: 'accept' | 'decline'
+  loading: boolean
+}>('ownerRequestResponse', { required: true })
 const emit = defineEmits<Emits>()
 </script>
 

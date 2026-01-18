@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { NavigationMenuItem } from '@nuxt/ui'
 
-const toast = useToast()
 const { unreadCount } = useNotifications()
 
 const open = ref(false)
@@ -112,7 +111,7 @@ const links = computed<NavigationMenuItem[][]>(() => [[{
           variant="ghost"
           class="w-full justify-start px-4 py-3 data-[active=true]:bg-elevated"
         >
-        <span class="truncate">BrainBook</span>
+          <span class="truncate">BrainBook</span>
         </UButton>
       </template>
 

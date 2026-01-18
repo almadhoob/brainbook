@@ -1,3 +1,5 @@
+import { inferImageMime } from '~/utils'
+
 export function extractErrorMessage(error: unknown): string {
   if (!error) return ''
   if (typeof error === 'string') return error
@@ -27,14 +29,15 @@ export function formatDate(value?: string | null): string {
   return parsed.toLocaleString()
 }
 
-export function toDataUrl(raw?: string | null, mime = 'image/png'): string | undefined {
+export function toDataUrl(raw?: string | null, mime?: string): string | undefined {
   if (!raw) return undefined
 
   const trimmed = raw.trim()
   if (!trimmed) return undefined
   if (trimmed.startsWith('data:')) return trimmed
 
-  return `data:${mime};base64,${trimmed}`
+  const resolvedMime = mime && mime.length > 0 ? mime : inferImageMime(trimmed)
+  return `data:${resolvedMime};base64,${trimmed}`
 }
 
 export function initialsFromName(name: string): string {

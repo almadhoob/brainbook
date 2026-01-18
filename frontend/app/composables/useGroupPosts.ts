@@ -20,6 +20,7 @@ export interface ApiGroupComment {
   l_name?: string | null
   avatar?: string | null
   content?: string | null
+  file?: string | null
   created_at?: string | null
 }
 
@@ -42,6 +43,7 @@ export interface GroupComment {
   authorName: string
   authorInitials: string
   avatarSrc?: string
+  mediaSrc?: string
 }
 
 export const MAX_GROUP_POST_LENGTH = 350
@@ -70,6 +72,7 @@ export function useGroupPosts(apiBase: string, groupId: Ref<number | null>) {
   const commentsCache = reactive<Record<number, GroupComment[]>>({})
   const commentsLoading = reactive<Record<number, boolean>>({})
   const newCommentDrafts = reactive<Record<number, string>>({})
+  const newCommentFiles = reactive<Record<number, string | null>>({})
   const commentSubmitting = reactive<Record<number, boolean>>({})
   const expandedPosts = ref(new Set<number>())
 
@@ -188,11 +191,12 @@ export function useGroupPosts(apiBase: string, groupId: Ref<number | null>) {
         {
           method: 'POST',
           credentials: 'include',
-          body: { content: draft }
+          body: { content: draft, file: newCommentFiles[postId] ?? undefined }
         }
       )
 
       newCommentDrafts[postId] = ''
+      newCommentFiles[postId] = null
       const targetPost = posts.value.find(post => post.id === postId)
       if (targetPost) {
         targetPost.commentCount += 1
@@ -243,6 +247,9 @@ export function useGroupPosts(apiBase: string, groupId: Ref<number | null>) {
     for (const key of Object.keys(newCommentDrafts)) {
       newCommentDrafts[Number(key)] = ''
     }
+    for (const key of Object.keys(newCommentFiles)) {
+      newCommentFiles[Number(key)] = null
+    }
     for (const key of Object.keys(commentSubmitting)) {
       commentSubmitting[Number(key)] = false
     }
@@ -263,7 +270,7 @@ export function useGroupPosts(apiBase: string, groupId: Ref<number | null>) {
         authorName,
         authorInitials: initialsFromName(authorName),
         avatarSrc: toDataUrl(post.avatar),
-        mediaSrc: toDataUrl(post.file, 'image/jpeg'),
+        mediaSrc: toDataUrl(post.file),
         commentCount: typeof post.comment_count === 'number' ? post.comment_count : 0
       }
     })
@@ -280,7 +287,8 @@ export function useGroupPosts(apiBase: string, groupId: Ref<number | null>) {
         formattedCreatedAt: formatDate(comment.created_at),
         authorName,
         authorInitials: initialsFromName(authorName),
-        avatarSrc: toDataUrl(comment.avatar)
+        avatarSrc: toDataUrl(comment.avatar),
+        mediaSrc: toDataUrl(comment.file)
       }
     })
   }
@@ -294,6 +302,7 @@ export function useGroupPosts(apiBase: string, groupId: Ref<number | null>) {
     commentsCache,
     commentsLoading,
     newCommentDrafts,
+    newCommentFiles,
     commentSubmitting,
     expandedPosts,
     loadPosts,

@@ -421,6 +421,7 @@ const currentMessageDraft = computed({
                         v-if="activeContentTab === 'posts'"
                         v-model:new-post-form="groupPosts.newPostForm"
                         v-model:new-comment-drafts="groupPosts.newCommentDrafts"
+                        v-model:new-comment-files="groupPosts.newCommentFiles"
                         :posts="groupPosts.posts.value"
                         :posts-loading="groupPosts.postsLoading.value"
                         :create-post-loading="groupPosts.createPostLoading.value"

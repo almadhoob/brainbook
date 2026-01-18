@@ -11,3 +11,11 @@ export function normalizeAvatar(raw?: string | null): string | undefined {
   if (raw.startsWith('data:')) return raw
   return `data:image/png;base64,${raw}`
 }
+
+export function inferImageMime(base64: string): string {
+  const trimmed = base64.trim()
+  if (trimmed.startsWith('/9j/')) return 'image/jpeg'
+  if (trimmed.startsWith('iVBOR')) return 'image/png'
+  if (trimmed.startsWith('R0lG')) return 'image/gif'
+  return 'image/png'
+}

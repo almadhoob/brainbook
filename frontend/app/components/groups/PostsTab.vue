@@ -22,10 +22,13 @@ interface Emits {
 defineProps<Props>()
 const newPostForm = defineModel<{ content: string, file: string | null }>('newPostForm', { required: true })
 const newCommentDrafts = defineModel<Record<number, string>>('newCommentDrafts', { required: true })
+const newCommentFiles = defineModel<Record<number, string | null>>('newCommentFiles', { required: true })
 const emit = defineEmits<Emits>()
 
 const toast = useToast()
 const postFileInput = ref<HTMLInputElement | null>(null)
+const MAX_FILE_SIZE = 10 * 1024 * 1024
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif']
 
 function openPostFilePicker() {
   postFileInput.value?.click()
@@ -39,6 +42,20 @@ function handlePostFileChange(event: Event) {
     return
   }
 
+  if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+    toast.add({ title: 'Invalid file type', description: 'Use JPEG, PNG, or GIF images.', color: 'error' })
+    newPostForm.value.file = null
+    target.value = ''
+    return
+  }
+
+  if (file.size > MAX_FILE_SIZE) {
+    toast.add({ title: 'File too large', description: 'Max file size is 10 MB.', color: 'error' })
+    newPostForm.value.file = null
+    target.value = ''
+    return
+  }
+
   fileToBase64(file)
     .then((base64) => {
       newPostForm.value.file = base64
@@ -46,6 +63,38 @@ function handlePostFileChange(event: Event) {
     .catch(() => {
       toast.add({ title: 'Unable to process file', color: 'error' })
       newPostForm.value.file = null
+    })
+}
+
+function handleCommentFileChange(postId: number, event: Event) {
+  const target = event.target as HTMLInputElement
+  const file = target.files?.[0]
+  if (!file) {
+    newCommentFiles.value[postId] = null
+    return
+  }
+
+  if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+    toast.add({ title: 'Invalid file type', description: 'Use JPEG, PNG, or GIF images.', color: 'error' })
+    newCommentFiles.value[postId] = null
+    target.value = ''
+    return
+  }
+
+  if (file.size > MAX_FILE_SIZE) {
+    toast.add({ title: 'File too large', description: 'Max file size is 10 MB.', color: 'error' })
+    newCommentFiles.value[postId] = null
+    target.value = ''
+    return
+  }
+
+  fileToBase64(file)
+    .then((base64) => {
+      newCommentFiles.value[postId] = base64
+    })
+    .catch(() => {
+      toast.add({ title: 'Unable to process file', color: 'error' })
+      newCommentFiles.value[postId] = null
     })
 }
 
@@ -91,7 +140,7 @@ function getCommentCount(postId: number) {
             ref="postFileInput"
             type="file"
             class="hidden"
-            accept="image/*"
+            accept="image/jpeg,image/png,image/gif"
             @change="handlePostFileChange"
           >
           <span v-if="newPostForm.file" class="text-xs text-muted">
@@ -166,9 +215,17 @@ function getCommentCount(postId: number) {
                   <p class="mt-2 text-sm whitespace-pre-line break-words">
                     {{ comment.content }}
                   </p>
+                  <div v-if="comment.mediaSrc" class="mt-3 overflow-hidden rounded-lg border border-default/60">
+                    <img
+                      :src="comment.mediaSrc"
+                      alt="Comment attachment"
+                      class="w-full"
+                      loading="lazy"
+                    >
+                  </div>
                 </div>
               </div>
-              <div class="flex gap-2">
+              <div class="space-y-2">
                 <div class="relative w-full">
                   <UTextarea
                     v-model="newCommentDrafts[post.id]"
@@ -182,13 +239,24 @@ function getCommentCount(postId: number) {
                     {{ getCommentCount(post.id) }} / {{ MAX_GROUP_COMMENT_LENGTH }}
                   </span>
                 </div>
-                <UButton
-                  color="primary"
-                  :loading="commentSubmitting[post.id]"
-                  @click="emit('submit-comment', post.id)"
-                >
-                  Send
-                </UButton>
+                <div class="flex flex-wrap items-center gap-3">
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/gif"
+                    class="block text-xs text-muted"
+                    @change="handleCommentFileChange(post.id, $event)"
+                  >
+                  <span v-if="newCommentFiles[post.id]" class="text-xs text-muted">Attachment ready</span>
+                </div>
+                <div class="flex justify-end">
+                  <UButton
+                    color="primary"
+                    :loading="commentSubmitting[post.id]"
+                    @click="emit('submit-comment', post.id)"
+                  >
+                    Send
+                  </UButton>
+                </div>
               </div>
             </div>
           </template>

@@ -62,6 +62,18 @@ func (app *Application) getUserProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	followRequestStatus := ""
+	if !isSelf {
+		status, exists, err := app.DB.FollowRequestStatus(viewer.ID, targetUserID)
+		if err != nil {
+			app.serverError(w, r, err)
+			return
+		}
+		if exists {
+			followRequestStatus = status
+		}
+	}
+
 	pendingFollowRequestsCount := 0
 	if isSelf {
 		pendingFollowRequestsCount, err = app.DB.PendingFollowRequestsCount(targetUserID)
@@ -82,6 +94,7 @@ func (app *Application) getUserProfile(w http.ResponseWriter, r *http.Request) {
 		"posts":                         posts,
 		"pending_follow_requests_count": pendingFollowRequestsCount,
 		"is_self":                       isSelf,
+		"follow_request_status":         followRequestStatus,
 	}
 
 	if targetUser.Avatar != nil {

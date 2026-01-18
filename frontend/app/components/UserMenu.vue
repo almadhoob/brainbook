@@ -69,7 +69,7 @@ const items = computed<DropdownMenuItem[][]>(() => [[{
 }], [{
   label: 'Profile',
   icon: 'i-lucide-user',
-  to: '/settings'
+  to: '/profile'
 }, {
   label: 'Settings',
   icon: 'i-lucide-settings',

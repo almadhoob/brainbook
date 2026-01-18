@@ -22,6 +22,9 @@ interface ApiUser {
   user_full_name?: string
   user_avatar?: string | null
   last_message_time?: string | null
+  follows?: boolean
+  followed_by?: boolean
+  follow_request_status?: string | null
 }
 
 interface ApiFollowRequest {
@@ -39,6 +42,9 @@ interface TableUser {
   initials: string
   avatarSrc?: string
   lastMessageTime?: string | null
+  follows: boolean
+  followedBy: boolean
+  followRequestStatus: string | null
 }
 
 const { data, status, error, refresh } = await useFetch<{ users: ApiUser[] }>(`${apiBase}/protected/v1/user-list`, {
@@ -72,9 +78,22 @@ const normalizedUsers = computed<TableUser[]>(() => {
       fullName,
       initials,
       avatarSrc,
-      lastMessageTime: user.last_message_time ?? null
+      lastMessageTime: user.last_message_time ?? null,
+      follows: Boolean(user.follows),
+      followedBy: Boolean(user.followed_by),
+      followRequestStatus: typeof user.follow_request_status === 'string' ? user.follow_request_status : null
     }
   })
+})
+
+const filteredUsers = computed<TableUser[]>(() => {
+  if (statusFilter.value === 'following') {
+    return normalizedUsers.value.filter(user => user.follows)
+  }
+  if (statusFilter.value === 'followers') {
+    return normalizedUsers.value.filter(user => user.followedBy)
+  }
+  return normalizedUsers.value
 })
 
 function normalizeAvatar(raw?: string | null) {
@@ -163,6 +182,22 @@ const columns: TableColumn<TableUser>[] = [
       h('span', { class: 'text-sm text-muted' }, formatLastActive(row.original.lastMessageTime))
   },
   {
+    id: 'relationship',
+    header: 'Status',
+    cell: ({ row }) => {
+      if (row.original.follows) {
+        return h('span', { class: 'text-xs text-success' }, 'Following')
+      }
+      if (row.original.followRequestStatus === 'pending') {
+        return h('span', { class: 'text-xs text-warning' }, 'Request pending')
+      }
+      if (row.original.followedBy) {
+        return h('span', { class: 'text-xs text-muted' }, 'Follows you')
+      }
+      return h('span', { class: 'text-xs text-muted' }, 'Not connected')
+    }
+  },
+  {
     id: 'actions',
     header: '',
     cell: ({ row }) =>
@@ -170,17 +205,23 @@ const columns: TableColumn<TableUser>[] = [
         ? h('span', { class: 'text-xs text-muted' }, 'Follow unavailable')
         : h('div', { class: 'flex gap-2' }, [
             h(UButton, {
-              label: 'Follow / Request',
-              color: 'primary',
+              label: row.original.followRequestStatus === 'pending'
+                ? 'Requested'
+                : (row.original.follows ? 'Unfollow' : 'Follow'),
+              color: row.original.follows ? 'neutral' : 'primary',
+              variant: row.original.follows ? 'soft' : 'solid',
               size: 'sm',
-              onClick: () => followUser(row.original.id as number)
+              disabled: row.original.followRequestStatus === 'pending',
+              onClick: () => (row.original.follows
+                ? unfollowUser(row.original.id as number)
+                : followUser(row.original.id as number))
             }),
             h(UButton, {
-              label: 'Unfollow',
+              label: 'View profile',
               color: 'neutral',
-              variant: 'soft',
+              variant: 'outline',
               size: 'sm',
-              onClick: () => unfollowUser(row.original.id as number)
+              to: `/profile/${row.original.id}`
             })
           ])
   }
@@ -268,11 +309,11 @@ const pagination = ref({ pageIndex: 0, pageSize: 10 })
       <div v-else-if="error" class="py-8 text-center text-error">
         Error loading users.
       </div>
-      <div v-if="normalizedUsers.length === 0 && status === 'success' && !error" class="py-8 text-center text-muted">
+      <div v-if="filteredUsers.length === 0 && status === 'success' && !error" class="py-8 text-center text-muted">
         No users found.
       </div>
       <UTable
-        v-if="normalizedUsers.length > 0"
+        v-if="filteredUsers.length > 0"
         ref="table"
         v-model:column-filters="columnFilters"
         v-model:column-visibility="columnVisibility"
@@ -282,7 +323,7 @@ const pagination = ref({ pageIndex: 0, pageSize: 10 })
           getPaginationRowModel: getPaginationRowModel()
         }"
         class="shrink-0"
-        :data="normalizedUsers"
+        :data="filteredUsers"
         :columns="columns"
         :loading="status === 'pending'"
         :ui="{

@@ -32,6 +32,12 @@ func (app *Application) getUserList(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		followStatus, followStatusExists, err := app.DB.FollowRequestStatus(user.ID, listedUser.ID)
+		if err != nil {
+			app.serverError(w, r, err)
+			return
+		}
+
 		usersWithFullName = append(usersWithFullName, map[string]any{
 			"user_id":           listedUser.ID,
 			"user_full_name":    listedUser.FullName(),
@@ -39,6 +45,12 @@ func (app *Application) getUserList(w http.ResponseWriter, r *http.Request) {
 			"last_message_time": listedUser.LastMessageTime,
 			"follows":           follows,
 			"followed_by":       followedBy,
+			"follow_request_status": func() any {
+				if followStatusExists {
+					return followStatus
+				}
+				return nil
+			}(),
 		})
 	}
 

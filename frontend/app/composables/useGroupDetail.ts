@@ -37,9 +37,9 @@ export function useGroupDetail(apiBase: string) {
   )
 
   const isOwner = computed(() =>
-    selectedGroupId.value != null &&
-    groupDetail.value?.ownerId != null &&
-    currentUserId.value === groupDetail.value.ownerId
+    selectedGroupId.value != null
+    && groupDetail.value?.ownerId != null
+    && currentUserId.value === groupDetail.value.ownerId
   )
 
   const joinStatus = computed(() => {
@@ -49,8 +49,8 @@ export function useGroupDetail(apiBase: string) {
   })
 
   const joinLoading = computed(() =>
-    selectedGroupId.value != null &&
-    joinRequestState[selectedGroupId.value]?.loading === true
+    selectedGroupId.value != null
+    && joinRequestState[selectedGroupId.value]?.loading === true
   )
 
   let detailRequestToken = 0

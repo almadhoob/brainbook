@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import type { ReceiveGroupMessageEventPayload } from '~/types'
 import type { ApiGroup, GroupSummary } from '~/composables/useGroupDetail'
-import { extractErrorMessage, formatDate } from '~/composables/useGroupHelpers'
+import { extractErrorMessage } from '~/composables/useGroupHelpers'
 
 const toast = useToast()
-const { session, hydrate: hydrateSession } = useSession()
+const { hydrate: hydrateSession } = useSession()
 const runtimeConfig = useRuntimeConfig()
 const apiBase = typeof runtimeConfig.public?.apiBase === 'string' && runtimeConfig.public.apiBase.length > 0
   ? runtimeConfig.public.apiBase
@@ -106,8 +106,8 @@ const selectedSummary = computed(() => {
 })
 
 const listLoading = computed(() =>
-  (activeTab.value === 'all' ? allGroupsStatus.value === 'pending' : myGroupsStatus.value === 'pending') ||
-  refreshingGroups.value
+  (activeTab.value === 'all' ? allGroupsStatus.value === 'pending' : myGroupsStatus.value === 'pending')
+  || refreshingGroups.value
 )
 
 const displayedGroups = computed(() => {
@@ -122,8 +122,8 @@ const displayedGroups = computed(() => {
 })
 
 const isMember = computed(() =>
-  groupDetail.selectedGroupId.value != null &&
-  membershipIds.value.has(groupDetail.selectedGroupId.value)
+  groupDetail.selectedGroupId.value != null
+  && membershipIds.value.has(groupDetail.selectedGroupId.value)
 )
 
 const showMemberContent = computed(() => isMember.value || groupDetail.isOwner.value)
@@ -143,8 +143,8 @@ watch(
   () => [normalizedMyGroups.value, normalizedAllGroups.value],
   ([mine = [], all = []]) => {
     if (groupDetail.selectedGroupId.value != null) {
-      const stillExists = mine.some(group => group.id === groupDetail.selectedGroupId.value) ||
-                         all.some(group => group.id === groupDetail.selectedGroupId.value)
+      const stillExists = mine.some(group => group.id === groupDetail.selectedGroupId.value)
+        || all.some(group => group.id === groupDetail.selectedGroupId.value)
       if (stillExists) return
     }
 
@@ -184,7 +184,7 @@ watch(() => groupDetail.selectedGroupId.value, async (groupId) => {
         groupMembers.loadMembers()
       ])
     }
-  } catch (error) {
+  } catch {
     // Error already handled in loadGroupSummary
   }
 })
@@ -209,10 +209,10 @@ async function refreshGroups() {
         ])
       }
     }
-  } catch (error) {
+  } catch (err) {
     toast.add({
       title: 'Refresh failed',
-      description: extractErrorMessage(error) || 'Unable to refresh groups right now.',
+      description: extractErrorMessage(err) || 'Unable to refresh groups right now.',
       color: 'error'
     })
   } finally {
@@ -230,7 +230,7 @@ async function handleJoinRequest() {
     if (status === 'member' || status === 'owner') {
       await refreshGroups()
     }
-  } catch (error) {
+  } catch {
     // Error already handled in composable
   }
 }
@@ -305,54 +305,54 @@ const currentMessageDraft = computed({
 
             <template #default>
               <div class="overflow-y-auto flex-1">
-              <div v-if="listLoading" class="py-8 text-center text-muted">
-                Loading groups...
-              </div>
-              <div v-else-if="!displayedGroups.length">
-                <p class="py-8 text-center text-muted">
-                  {{ anyGroupsLoaded ? 'No groups match your filters yet.' : 'No groups available. Create one to get started!' }}
-                </p>
-              </div>
-              <div v-else class="space-y-3">
-                <button
-                  v-for="group in displayedGroups"
-                  :key="group.id"
-                  type="button"
-                  class="w-full rounded-2xl border p-4 text-left transition"
-                  :class="groupDetail.selectedGroupId.value === group.id ? 'border-primary bg-primary/10 shadow-sm' : 'border-default/60 hover:bg-elevated/60'"
-                  @click="groupDetail.selectGroup(group.id)"
-                >
-                  <div class="flex items-start justify-between gap-2">
-                    <div class="min-w-0">
-                      <p class="font-medium truncate">
-                        {{ group.title }}
-                      </p>
-                      <p class="text-xs text-muted">
-                        Created {{ group.createdAtFormatted }}
-                      </p>
-                    </div>
-                    <div class="flex items-center gap-1">
-                      <UBadge
-                        v-if="group.ownerId != null && group.ownerId === groupDetail.currentUserId.value"
-                        size="xs"
-                        color="warning"
-                      >
-                        Owner
-                      </UBadge>
-                      <UBadge
-                        v-else-if="membershipIds.has(group.id)"
-                        size="xs"
-                        color="primary"
-                      >
-                        Member
-                      </UBadge>
-                    </div>
-                  </div>
-                  <p class="mt-3 text-sm truncate">
-                    {{ group.description || 'No description provided.' }}
+                <div v-if="listLoading" class="py-8 text-center text-muted">
+                  Loading groups...
+                </div>
+                <div v-else-if="!displayedGroups.length">
+                  <p class="py-8 text-center text-muted">
+                    {{ anyGroupsLoaded ? 'No groups match your filters yet.' : 'No groups available. Create one to get started!' }}
                   </p>
-                </button>
-              </div>
+                </div>
+                <div v-else class="space-y-3">
+                  <button
+                    v-for="group in displayedGroups"
+                    :key="group.id"
+                    type="button"
+                    class="w-full rounded-2xl border p-4 text-left transition"
+                    :class="groupDetail.selectedGroupId.value === group.id ? 'border-primary bg-primary/10 shadow-sm' : 'border-default/60 hover:bg-elevated/60'"
+                    @click="groupDetail.selectGroup(group.id)"
+                  >
+                    <div class="flex items-start justify-between gap-2">
+                      <div class="min-w-0">
+                        <p class="font-medium truncate">
+                          {{ group.title }}
+                        </p>
+                        <p class="text-xs text-muted">
+                          Created {{ group.createdAtFormatted }}
+                        </p>
+                      </div>
+                      <div class="flex items-center gap-1">
+                        <UBadge
+                          v-if="group.ownerId != null && group.ownerId === groupDetail.currentUserId.value"
+                          size="xs"
+                          color="warning"
+                        >
+                          Owner
+                        </UBadge>
+                        <UBadge
+                          v-else-if="membershipIds.has(group.id)"
+                          size="xs"
+                          color="primary"
+                        >
+                          Member
+                        </UBadge>
+                      </div>
+                    </div>
+                    <p class="mt-3 text-sm truncate">
+                      {{ group.description || 'No description provided.' }}
+                    </p>
+                  </button>
+                </div>
               </div>
             </template>
           </UCard>
@@ -419,14 +419,14 @@ const currentMessageDraft = computed({
                       <!-- Tab Content -->
                       <GroupsPostsTab
                         v-if="activeContentTab === 'posts'"
+                        v-model:new-post-form="groupPosts.newPostForm"
+                        v-model:new-comment-drafts="groupPosts.newCommentDrafts"
                         :posts="groupPosts.posts.value"
                         :posts-loading="groupPosts.postsLoading.value"
                         :create-post-loading="groupPosts.createPostLoading.value"
-                        :new-post-form="groupPosts.newPostForm"
                         :post-count="groupPosts.postCount.value"
                         :comments-cache="groupPosts.commentsCache"
                         :comments-loading="groupPosts.commentsLoading"
-                        :new-comment-drafts="groupPosts.newCommentDrafts"
                         :comment-submitting="groupPosts.commentSubmitting"
                         :expanded-posts="groupPosts.expandedPosts.value"
                         @submit-post="groupPosts.submitPost"
@@ -436,9 +436,9 @@ const currentMessageDraft = computed({
 
                       <GroupsChatTab
                         v-if="activeContentTab === 'chat'"
+                        v-model:message-draft="currentMessageDraft"
                         :messages="groupChat.activeGroupMessages.value"
                         :messages-loading="groupChat.groupMessagesLoading[groupDetail.selectedGroupId.value || -1] || false"
-                        v-model:message-draft="currentMessageDraft"
                         :message-sending="groupChat.groupMessageSending[groupDetail.selectedGroupId.value || -1] || false"
                         :current-user-id="groupDetail.currentUserId.value"
                         :is-online="groupChat.isUserOnline(groupDetail.currentUserId.value)"
@@ -447,11 +447,11 @@ const currentMessageDraft = computed({
 
                       <GroupsEventsTab
                         v-if="activeContentTab === 'events'"
+                        v-model:new-event-form="groupEvents.newEventForm"
                         :events="groupEvents.events.value"
                         :events-loading="groupEvents.eventsLoading.value"
                         :create-event-loading="groupEvents.createEventLoading.value"
                         :rsvp-loading="groupEvents.rsvpLoading"
-                        :new-event-form="groupEvents.newEventForm"
                         :is-owner="groupDetail.isOwner.value"
                         @create-event="groupEvents.createEvent"
                         @rsvp="groupEvents.respondRsvp"
@@ -459,10 +459,10 @@ const currentMessageDraft = computed({
 
                       <GroupsMembersTab
                         v-if="activeContentTab === 'members'"
+                        v-model:owner-request-response="groupMembers.ownerRequestResponse"
                         :members="groupMembers.members.value"
                         :members-loading="groupMembers.membersLoading.value"
                         :is-owner="groupDetail.isOwner.value"
-                        :owner-request-response="groupMembers.ownerRequestResponse"
                         @respond-request="groupMembers.respondGroupRequestById"
                         @refresh-members="groupMembers.loadMembers"
                       />

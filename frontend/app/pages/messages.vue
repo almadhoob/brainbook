@@ -175,10 +175,10 @@ const handleIncomingMessage = (event: ReceiveMessageEventPayload) => {
     const existing = messagesByUser[partnerId] ?? []
     const trimmed = event.message.trim()
     const cleaned = existing.filter(message =>
-      !(typeof message.id === 'string' &&
-        message.id.startsWith('local-') &&
-        message.isMine &&
-        message.content.trim() === trimmed)
+      !(typeof message.id === 'string'
+        && message.id.startsWith('local-')
+        && message.isMine
+        && message.content.trim() === trimmed)
     )
     if (cleaned.length !== existing.length) {
       messagesByUser[partnerId] = cleaned
@@ -324,163 +324,163 @@ if (import.meta.client) {
   <UDashboardPanel grow>
     <div class="flex h-full flex-row gap-3 p-4">
       <section class="w-64 flex flex-col flex-shrink-0">
-      <UDashboardPanel id="messages-list" :resizable="false" class="h-full">
-        <UDashboardNavbar title="Messages">
-          <template #leading>
-            <UDashboardSidebarCollapse />
-          </template>
-          <template #trailing>
-            <UBadge :label="chatPartners.length" variant="subtle" />
-          </template>
-        </UDashboardNavbar>
+        <UDashboardPanel id="messages-list" :resizable="false" class="h-full">
+          <UDashboardNavbar title="Messages">
+            <template #leading>
+              <UDashboardSidebarCollapse />
+            </template>
+            <template #trailing>
+              <UBadge :label="chatPartners.length" variant="subtle" />
+            </template>
+          </UDashboardNavbar>
 
-        <div class="p-3 border-b border-default">
-          <UInput
-            v-model="partnerSearch"
-            icon="i-lucide-search"
-            placeholder="Search people"
-          />
-        </div>
-
-        <div class="flex-1 overflow-y-auto">
-          <div v-if="loadingPartners" class="py-8 text-center text-muted text-sm">
-            Loading people…
+          <div class="p-3 border-b border-default">
+            <UInput
+              v-model="partnerSearch"
+              icon="i-lucide-search"
+              placeholder="Search people"
+            />
           </div>
 
-          <template v-else>
-            <button
-              v-for="partner in filteredPartners"
-              :key="partner.id"
-              type="button"
-              class="w-full border-b border-default last:border-b-0 px-4 py-3 text-left hover:bg-primary/5 transition"
-              :class="partner.id === selectedPartnerId && 'bg-primary/10'"
-              @click="selectPartner(partner.id)"
-            >
-              <div class="flex items-center gap-3">
-                <UAvatar
-                  :src="partner.avatar"
-                  :text="partner.name.split(' ').map(part => part[0]).join('').slice(0, 2)"
-                />
-                <div class="min-w-0 flex-1">
-                  <div class="flex items-center gap-2">
-                    <p class="font-medium text-highlighted truncate">
-                      {{ partner.name }}
+          <div class="flex-1 overflow-y-auto">
+            <div v-if="loadingPartners" class="py-8 text-center text-muted text-sm">
+              Loading people…
+            </div>
+
+            <template v-else>
+              <button
+                v-for="partner in filteredPartners"
+                :key="partner.id"
+                type="button"
+                class="w-full border-b border-default last:border-b-0 px-4 py-3 text-left hover:bg-primary/5 transition"
+                :class="partner.id === selectedPartnerId && 'bg-primary/10'"
+                @click="selectPartner(partner.id)"
+              >
+                <div class="flex items-center gap-3">
+                  <UAvatar
+                    :src="partner.avatar"
+                    :text="partner.name.split(' ').map(part => part[0]).join('').slice(0, 2)"
+                  />
+                  <div class="min-w-0 flex-1">
+                    <div class="flex items-center gap-2">
+                      <p class="font-medium text-highlighted truncate">
+                        {{ partner.name }}
+                      </p>
+                      <span
+                        class="size-2 rounded-full"
+                        :class="isUserOnline(partner.id) ? 'bg-emerald-500' : 'bg-muted'"
+                      />
+                      <UBadge
+                        v-if="partner.hasUnread"
+                        label="new"
+                        size="xs"
+                        color="primary"
+                        variant="subtle"
+                      />
+                    </div>
+                    <p class="text-xs text-muted truncate">
+                      {{ partner.lastMessageSnippet || 'Start a conversation' }}
                     </p>
-                    <span
-                      class="size-2 rounded-full"
-                      :class="isUserOnline(partner.id) ? 'bg-emerald-500' : 'bg-muted'"
-                    />
-                    <UBadge
-                      v-if="partner.hasUnread"
-                      label="new"
-                      size="xs"
-                      color="primary"
-                      variant="subtle"
-                    />
+                    <p class="text-[10px] text-muted">
+                      {{ formatTimestamp(partner.lastMessageTime) }}
+                    </p>
                   </div>
-                  <p class="text-xs text-muted truncate">
-                    {{ partner.lastMessageSnippet || 'Start a conversation' }}
+                </div>
+              </button>
+            </template>
+          </div>
+        </UDashboardPanel>
+      </section>
+
+      <section class="flex-1 flex flex-col border border-default rounded-2xl overflow-hidden">
+        <header class="border-b border-default px-4 py-3 flex items-center justify-between">
+          <div class="min-w-0">
+            <p class="font-semibold text-lg text-highlighted truncate">
+              {{ selectedPartner?.name || 'Select a conversation' }}
+            </p>
+            <p class="text-sm text-muted">
+              <span v-if="selectedPartnerId && isUserOnline(selectedPartnerId)" class="text-emerald-500">Online</span>
+              <span v-else>Offline</span>
+            </p>
+          </div>
+          <UBadge
+            :label="isRealtimeConnected ? 'Connected' : 'Connecting'"
+            :color="isRealtimeConnected ? 'primary' : 'neutral'"
+            variant="subtle"
+          />
+        </header>
+
+        <div ref="conversationRef" class="flex-1 overflow-y-auto bg-muted/10">
+          <div v-if="!selectedPartnerId" class="h-full flex flex-col items-center justify-center text-muted gap-3">
+            <UIcon name="i-lucide-inbox" class="size-10" />
+            <p>
+              Select someone to start chatting.
+            </p>
+          </div>
+
+          <div v-else class="p-4 space-y-3">
+            <div v-if="loadingConversation" class="text-center text-sm text-muted py-4">
+              Loading conversation…
+            </div>
+            <template v-else>
+              <div
+                v-for="message in activeMessages"
+                :key="message.id"
+                class="flex"
+                :class="message.isMine ? 'justify-end' : 'justify-start'"
+              >
+                <div
+                  class="max-w-[80%] rounded-2xl px-4 py-2 text-sm"
+                  :class="message.isMine ? 'bg-primary text-white' : 'bg-white dark:bg-elevated/70 text-highlighted border border-default'"
+                >
+                  <p class="whitespace-pre-line wrap-break-word">
+                    {{ message.content }}
                   </p>
-                  <p class="text-[10px] text-muted">
-                    {{ formatTimestamp(partner.lastMessageTime) }}
-                  </p>
+                  <span class="block text-[11px] mt-1 text-right" :class="message.isMine ? 'text-white/70' : 'text-muted'">
+                    {{ formatTimestamp(message.createdAt) }}
+                  </span>
                 </div>
               </div>
-            </button>
-          </template>
-        </div>
-      </UDashboardPanel>
-    </section>
-
-    <section class="flex-1 flex flex-col border border-default rounded-2xl overflow-hidden">
-      <header class="border-b border-default px-4 py-3 flex items-center justify-between">
-        <div class="min-w-0">
-          <p class="font-semibold text-lg text-highlighted truncate">
-            {{ selectedPartner?.name || 'Select a conversation' }}
-          </p>
-          <p class="text-sm text-muted">
-            <span v-if="selectedPartnerId && isUserOnline(selectedPartnerId)" class="text-emerald-500">Online</span>
-            <span v-else>Offline</span>
-          </p>
-        </div>
-        <UBadge
-          :label="isRealtimeConnected ? 'Connected' : 'Connecting'"
-          :color="isRealtimeConnected ? 'primary' : 'neutral'"
-          variant="subtle"
-        />
-      </header>
-
-      <div ref="conversationRef" class="flex-1 overflow-y-auto bg-muted/10">
-        <div v-if="!selectedPartnerId" class="h-full flex flex-col items-center justify-center text-muted gap-3">
-          <UIcon name="i-lucide-inbox" class="size-10" />
-          <p>
-            Select someone to start chatting.
-          </p>
-        </div>
-
-        <div v-else class="p-4 space-y-3">
-          <div v-if="loadingConversation" class="text-center text-sm text-muted py-4">
-            Loading conversation…
+            </template>
           </div>
-          <template v-else>
-            <div
-              v-for="message in activeMessages"
-              :key="message.id"
-              class="flex"
-              :class="message.isMine ? 'justify-end' : 'justify-start'"
-            >
-              <div
-                class="max-w-[80%] rounded-2xl px-4 py-2 text-sm"
-                :class="message.isMine ? 'bg-primary text-white' : 'bg-white dark:bg-elevated/70 text-highlighted border border-default'"
-              >
-                <p class="whitespace-pre-line wrap-break-word">
-                  {{ message.content }}
-                </p>
-                <span class="block text-[11px] mt-1 text-right" :class="message.isMine ? 'text-white/70' : 'text-muted'">
-                  {{ formatTimestamp(message.createdAt) }}
-                </span>
+        </div>
+
+        <footer class="border-t border-default p-4">
+          <form class="flex flex-col gap-2" @submit.prevent="sendMessage">
+            <div class="relative">
+              <UTextarea
+                :model-value="newMessage"
+                placeholder="Send a message (Press Enter to send)"
+                :maxlength="MAX_MESSAGE_LENGTH"
+                :disabled="!selectedPartnerId || sendingMessage || !canMessageSelected"
+                autoresize
+                :rows="2"
+                class="w-full"
+                @update:model-value="handleMessageInput"
+                @keydown="handleComposerKeydown"
+              />
+              <div class="absolute bottom-2 right-3 text-xs" :class="newMessage.length > MAX_MESSAGE_LENGTH - 20 ? 'text-error' : 'text-muted'">
+                {{ newMessage.length }}/{{ MAX_MESSAGE_LENGTH }}
               </div>
             </div>
-          </template>
-        </div>
-      </div>
-
-      <footer class="border-t border-default p-4">
-        <form class="flex flex-col gap-2" @submit.prevent="sendMessage">
-          <div class="relative">
-            <UTextarea
-              :model-value="newMessage"
-              placeholder="Send a message (Press Enter to send)"
-              :maxlength="MAX_MESSAGE_LENGTH"
-              :disabled="!selectedPartnerId || sendingMessage || !canMessageSelected"
-              autoresize
-              :rows="2"
-              class="w-full"
-              @update:model-value="handleMessageInput"
-              @keydown="handleComposerKeydown"
-            />
-            <div class="absolute bottom-2 right-3 text-xs" :class="newMessage.length > MAX_MESSAGE_LENGTH - 20 ? 'text-error' : 'text-muted'">
-              {{ newMessage.length }}/{{ MAX_MESSAGE_LENGTH }}
+            <div class="flex justify-between items-center">
+              <span v-if="selectedPartnerId && !canMessageSelected" class="text-xs text-muted">
+                You can only message users who follow you or are followed by you.
+              </span>
+              <UButton
+                type="submit"
+                color="primary"
+                :disabled="!selectedPartnerId || !canMessageSelected || !newMessage.trim() || newMessage.length > MAX_MESSAGE_LENGTH"
+                :loading="sendingMessage"
+                icon="i-lucide-send"
+                @click="sendMessage"
+              >
+                Send
+              </UButton>
             </div>
-          </div>
-          <div class="flex justify-between items-center">
-            <span v-if="selectedPartnerId && !canMessageSelected" class="text-xs text-muted">
-              You can only message users who follow you or are followed by you.
-            </span>
-            <UButton
-              type="submit"
-              color="primary"
-              :disabled="!selectedPartnerId || !canMessageSelected || !newMessage.trim() || newMessage.length > MAX_MESSAGE_LENGTH"
-              :loading="sendingMessage"
-              icon="i-lucide-send"
-              @click="sendMessage"
-            >
-              Send
-            </UButton>
-          </div>
-        </form>
-      </footer>
-    </section>
+          </form>
+        </footer>
+      </section>
     </div>
   </UDashboardPanel>
 </template>

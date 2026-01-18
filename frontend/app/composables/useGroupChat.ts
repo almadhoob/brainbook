@@ -130,10 +130,10 @@ export function useGroupChat(apiBase: string, groupId: Ref<number | null>, curre
     const existing = groupMessages[gid] ?? []
     const trimmed = event.message.trim()
     const cleaned = existing.filter(m =>
-      !(typeof m.id === 'string' &&
-        m.id.startsWith('local-') &&
-        m.senderId === event.sender_id &&
-        m.content.trim() === trimmed)
+      !(typeof m.id === 'string'
+        && m.id.startsWith('local-')
+        && m.senderId === event.sender_id
+        && m.content.trim() === trimmed)
     )
     if (cleaned.length !== existing.length) {
       groupMessages[gid] = cleaned
@@ -144,9 +144,9 @@ export function useGroupChat(apiBase: string, groupId: Ref<number | null>, curre
   function appendGroupMessage(gid: number, message: GroupChatMessage) {
     const list = groupMessages[gid] ?? []
     const exists = list.some(
-      m => m.senderId === message.senderId &&
-           m.content === message.content &&
-           m.createdAtRaw === message.createdAtRaw
+      m => m.senderId === message.senderId
+        && m.content === message.content
+        && m.createdAtRaw === message.createdAtRaw
     )
     if (exists) return
 
@@ -157,8 +157,8 @@ export function useGroupChat(apiBase: string, groupId: Ref<number | null>, curre
     if (!Array.isArray(messages)) return []
 
     return messages.map((message, index) => {
-      const senderName = buildFullName(message.f_name, message.l_name) ||
-        `User ${message.user_id ?? ''}`.trim()
+      const senderName = buildFullName(message.f_name, message.l_name)
+        || `User ${message.user_id ?? ''}`.trim()
       return {
         id: typeof message.id === 'number' ? message.id : `msg-${index}`,
         senderId: typeof message.user_id === 'number' ? message.user_id : -1,

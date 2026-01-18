@@ -40,9 +40,9 @@ const fields = [
   },
   {
     name: 'dob',
-    type: 'date' as const,
+    type: 'text' as const,
     label: 'Date of Birth',
-    placeholder: 'Select your birth date'
+    placeholder: 'YYYY-MM-DD'
   },
   {
     name: 'nickname',
@@ -52,13 +52,13 @@ const fields = [
   },
   {
     name: 'bio',
-    type: 'textarea' as const,
+    type: 'text' as const,
     label: 'About me (optional)',
     placeholder: 'Add a short bio'
   },
   {
     name: 'avatar',
-    type: 'file' as const,
+    type: 'text' as const,
     label: 'Avatar (optional)',
     placeholder: 'Choose an avatar image',
     accept: 'image/png,image/jpeg,image/gif'
@@ -139,7 +139,6 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
       credentials: 'include'
     })
     toast.add({ title: 'Account created', description: 'Welcome!' })
-    resetOptionalFields()
     await navigateTo('/')
   } catch (err: unknown) {
     const errorMsg = (err as { data?: { Error?: string } })?.data?.Error || 'Registration error'
@@ -147,6 +146,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
   }
 }
 </script>
+
 <template>
   <UAuthForm
     :fields="fields"
@@ -155,6 +155,32 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
     :submit="{ label: 'Continue' }"
     @submit="onSubmit"
   >
+    <template #dob-field="{ state, field }">
+      <UInput
+        v-model="(state as Record<string, string>)[field.name]"
+        type="date"
+        :placeholder="field.placeholder"
+      />
+    </template>
+
+    <template #bio-field="{ state, field }">
+      <UTextarea
+        v-model="(state as Record<string, string>)[field.name]"
+        :placeholder="field.placeholder"
+        :rows="3"
+      />
+    </template>
+
+    <template #avatar-field="{ state, field }">
+      <UInput
+        type="file"
+        :accept="field.accept"
+        @change="(event: Event) => {
+          const target = event.target as HTMLInputElement
+          ;(state as unknown as Record<string, File | undefined>)[field.name] = target.files?.[0]
+        }"
+      />
+    </template>
     <template #description>
       Already have an account? <ULink
         to="/signin"

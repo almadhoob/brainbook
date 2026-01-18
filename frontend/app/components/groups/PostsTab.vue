@@ -7,22 +7,21 @@ interface Props {
   posts: GroupPostItem[]
   postsLoading: boolean
   createPostLoading: boolean
-  newPostForm: { content: string, file: string | null }
   postCount: number
   commentsCache: Record<number, GroupComment[]>
   commentsLoading: Record<number, boolean>
-  newCommentDrafts: Record<number, string>
   commentSubmitting: Record<number, boolean>
   expandedPosts: Set<number>
 }
 
 interface Emits {
   (e: 'submit-post'): void
-  (e: 'toggle-comments', postId: number): void
-  (e: 'submit-comment', postId: number): void
+  (e: 'toggle-comments' | 'submit-comment', postId: number): void
 }
 
-const props = defineProps<Props>()
+defineProps<Props>()
+const newPostForm = defineModel<{ content: string, file: string | null }>('newPostForm', { required: true })
+const newCommentDrafts = defineModel<Record<number, string>>('newCommentDrafts', { required: true })
 const emit = defineEmits<Emits>()
 
 const toast = useToast()
@@ -36,27 +35,23 @@ function handlePostFileChange(event: Event) {
   const target = event.target as HTMLInputElement
   const file = target.files?.[0]
   if (!file) {
-    props.newPostForm.file = null
+    newPostForm.value.file = null
     return
   }
 
   fileToBase64(file)
     .then((base64) => {
-      props.newPostForm.file = base64
+      newPostForm.value.file = base64
     })
     .catch(() => {
       toast.add({ title: 'Unable to process file', color: 'error' })
-      props.newPostForm.file = null
+      newPostForm.value.file = null
     })
 }
 
 function getCommentCount(postId: number) {
-  const val = props.newCommentDrafts[postId]
+  const val = newCommentDrafts.value[postId]
   return typeof val === 'string' ? val.length : 0
-}
-
-function isPostExpanded(postId: number) {
-  return props.expandedPosts.has(postId)
 }
 </script>
 
@@ -151,10 +146,10 @@ function isPostExpanded(postId: number) {
                 <span>{{ post.commentCount }} comments</span>
               </div>
               <UButton size="xs" variant="ghost" @click="emit('toggle-comments', post.id)">
-                {{ isPostExpanded(post.id) ? 'Hide comments' : 'View comments' }}
+                {{ expandedPosts.has(post.id) ? 'Hide comments' : 'View comments' }}
               </UButton>
             </div>
-            <div v-if="isPostExpanded(post.id)" class="mt-4 space-y-3 rounded-2xl border border-default/60 p-4">
+            <div v-if="expandedPosts.has(post.id)" class="mt-4 space-y-3 rounded-2xl border border-default/60 p-4">
               <div v-if="commentsLoading[post.id]" class="text-sm text-muted">
                 Loading comments...
               </div>

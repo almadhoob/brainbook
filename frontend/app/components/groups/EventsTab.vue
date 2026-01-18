@@ -6,7 +6,6 @@ interface Props {
   eventsLoading: boolean
   createEventLoading: boolean
   rsvpLoading: Record<number, boolean>
-  newEventForm: { title: string, description: string, time: string }
   isOwner: boolean
 }
 
@@ -16,6 +15,7 @@ interface Emits {
 }
 
 defineProps<Props>()
+const newEventForm = defineModel<{ title: string, description: string, time: string }>('newEventForm', { required: true })
 const emit = defineEmits<Emits>()
 </script>
 

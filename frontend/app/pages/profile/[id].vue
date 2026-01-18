@@ -72,7 +72,7 @@ const {
   loadFollowers
 } = useFollowers(apiBase, normalizedProfileId)
 
-const { data, status, error, refresh } = await useFetch<ProfileResponse>(
+const { data, error, refresh } = await useFetch<ProfileResponse>(
   () => `${apiBase}/guest/v1/profile/user/${profileId.value}`,
   {
     credentials: 'include',

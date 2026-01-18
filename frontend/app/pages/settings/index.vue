@@ -120,9 +120,12 @@ async function onSubmit(_event: FormSubmitEvent<ProfileSchema>) {
   }
 }
 
-function toBase64Payload(dataUrl: string) {
+function toBase64Payload(dataUrl: string): string | null {
   const parts = dataUrl.split(',')
-  return parts.length > 1 ? parts[1] : dataUrl
+  if (parts.length > 1) {
+    return parts[1] ?? null
+  }
+  return dataUrl
 }
 
 async function onFileChange(e: Event) {

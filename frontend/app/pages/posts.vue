@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { inferImageMime } from '~/utils'
+
 interface ApiPost {
   id?: number
   content?: string | null
@@ -27,6 +29,7 @@ interface ApiPostComment {
   user_full_name?: string | null
   user_avatar?: string | null
   content?: string | null
+  file?: string | null
   created_at?: string | null
 }
 
@@ -37,6 +40,7 @@ interface PostComment {
   avatarSrc?: string
   content: string
   formattedCreatedAt: string
+  mediaSrc?: string
 }
 
 const toast = useToast()
@@ -71,7 +75,7 @@ const posts = computed<PostFeedItem[]>(() => {
       avatarSrc: binaryToDataUrl(post.avatar, 'image/png'),
       postedAt: formatTimestamp(post.created_at),
       content: (post.content ?? '').trim(),
-      mediaSrc: binaryToDataUrl(post.file, 'image/jpeg'),
+      mediaSrc: binaryToDataUrl(post.file, inferImageMime(post.file ?? '')),
       commentCount: typeof post.comment_count === 'number' ? post.comment_count : 0
     }
   })
@@ -84,6 +88,7 @@ const isRefreshing = computed(() => status.value === 'pending')
 const commentsCache = reactive<Record<number | string, PostComment[]>>({})
 const commentsLoading = reactive<Record<number | string, boolean>>({})
 const commentDrafts = reactive<Record<number | string, string>>({})
+const commentFiles = reactive<Record<number | string, string | null>>({})
 const commentSubmitting = reactive<Record<number | string, boolean>>({})
 const expandedPosts = ref(new Set<number | string>())
 
@@ -155,7 +160,8 @@ function normalizeComments(comments?: ApiPostComment[]): PostComment[] {
       authorInitials: initials,
       avatarSrc: binaryToDataUrl(comment.user_avatar, 'image/png'),
       content: (comment.content ?? '').trim(),
-      formattedCreatedAt: formatTimestamp(comment.created_at)
+      formattedCreatedAt: formatTimestamp(comment.created_at),
+      mediaSrc: binaryToDataUrl(comment.file, inferImageMime(comment.file ?? ''))
     }
   })
 }
@@ -216,9 +222,10 @@ async function submitComment(postId: number | string) {
     await $fetch(`${apiBase}/protected/v1/posts/${postId}/comments`, {
       method: 'POST',
       credentials: 'include',
-      body: { content: draft }
+      body: { content: draft, file: commentFiles[postId] ?? undefined }
     })
     commentDrafts[postId] = ''
+    commentFiles[postId] = null
     const rawPosts = data.value?.posts
     const targetPost = Array.isArray(rawPosts) ? rawPosts.find(post => post.id === postId) : null
     if (targetPost && typeof targetPost.comment_count === 'number') {
@@ -242,6 +249,58 @@ const MAX_COMMENT_LENGTH = 350
 function getCommentLength(postId: number | string) {
   const val = commentDrafts[postId]
   return typeof val === 'string' ? val.length : 0
+}
+
+const MAX_COMMENT_FILE_SIZE = 10 * 1024 * 1024
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif']
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const result = typeof reader.result === 'string' ? reader.result : ''
+      const payload = result.includes(',') ? result.split(',')[1] : result
+      if (!payload) {
+        reject(new Error('empty-file'))
+        return
+      }
+      resolve(payload)
+    }
+    reader.onerror = () => reject(reader.error ?? new Error('read-error'))
+    reader.readAsDataURL(file)
+  })
+}
+
+function handleCommentFileChange(postId: number | string, event: Event) {
+  const target = event.target as HTMLInputElement
+  const file = target.files?.[0]
+  if (!file) {
+    commentFiles[postId] = null
+    return
+  }
+
+  if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+    toast.add({ title: 'Invalid file type', description: 'Use JPEG, PNG, or GIF images.', color: 'error' })
+    commentFiles[postId] = null
+    target.value = ''
+    return
+  }
+
+  if (file.size > MAX_COMMENT_FILE_SIZE) {
+    toast.add({ title: 'File too large', description: 'Max file size is 10 MB.', color: 'error' })
+    commentFiles[postId] = null
+    target.value = ''
+    return
+  }
+
+  fileToBase64(file)
+    .then((payload) => {
+      commentFiles[postId] = payload
+    })
+    .catch(() => {
+      toast.add({ title: 'Unable to process file', color: 'error' })
+      commentFiles[postId] = null
+    })
 }
 </script>
 
@@ -342,10 +401,18 @@ function getCommentLength(postId: number | string) {
                       <p class="mt-2 text-sm whitespace-pre-line wrap-break-word">
                         {{ comment.content }}
                       </p>
+                      <div v-if="comment.mediaSrc" class="mt-3 overflow-hidden rounded-lg border border-default/60">
+                        <img
+                          :src="comment.mediaSrc"
+                          alt="Comment attachment"
+                          class="w-full"
+                          loading="lazy"
+                        >
+                      </div>
                     </div>
                   </div>
-                  <div class="flex gap-2 items-end">
-                    <div class="relative flex-1">
+                  <div class="space-y-2">
+                    <div class="relative">
                       <UTextarea
                         v-model="commentDrafts[post.id]"
                         placeholder="Write a comment"
@@ -358,13 +425,24 @@ function getCommentLength(postId: number | string) {
                         {{ getCommentLength(post.id) }} / {{ MAX_COMMENT_LENGTH }}
                       </span>
                     </div>
-                    <UButton
-                      color="primary"
-                      :loading="commentSubmitting[post.id]"
-                      @click="submitComment(post.id)"
-                    >
-                      Send
-                    </UButton>
+                    <div class="flex flex-wrap items-center gap-3">
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/gif"
+                        class="block text-xs text-muted"
+                        @change="handleCommentFileChange(post.id, $event)"
+                      >
+                      <span v-if="commentFiles[post.id]" class="text-xs text-muted">Attachment ready</span>
+                    </div>
+                    <div class="flex justify-end">
+                      <UButton
+                        color="primary"
+                        :loading="commentSubmitting[post.id]"
+                        @click="submitComment(post.id)"
+                      >
+                        Send
+                      </UButton>
+                    </div>
                   </div>
                 </div>
               </div>

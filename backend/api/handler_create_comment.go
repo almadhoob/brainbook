@@ -36,6 +36,7 @@ func (app *Application) createComment(w http.ResponseWriter, r *http.Request) {
 	input.Validator.CheckField(validator.MaxRunes(input.Content, 500), "content", "Content must not exceed 500 characters")
 	if len(input.File) > 0 {
 		input.Validator.CheckField(len(input.File) <= 10_000_000, "file", "File size must be 10MB or less")
+		input.Validator.CheckField(isAllowedImage(input.File), "file", "File must be JPEG, PNG, or GIF")
 	}
 
 	if input.Validator.HasErrors() {

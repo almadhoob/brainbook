@@ -24,6 +24,7 @@ const fileName = ref('')
 const filePayload = ref<string | undefined>(undefined)
 const toast = useToast()
 const MAX_FILE_SIZE = 10 * 1024 * 1024
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif']
 
 // Content max length and counter (similar to group modal)
 const MAX_CONTENT = 350
@@ -114,6 +115,11 @@ async function handleFileChange(event: Event) {
 
   if (file.size > MAX_FILE_SIZE) {
     errors.file = 'File exceeds 10 MB limit.'
+    return
+  }
+
+  if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+    errors.file = 'Only JPEG, PNG, or GIF images are allowed.'
     return
   }
 
@@ -300,7 +306,7 @@ async function handleSubmit() {
         <UFieldGroup label="Attachment" :description="fileName || 'Optional image or file'" :error="errors.file">
           <input
             type="file"
-            accept="image/*,video/*"
+            accept="image/jpeg,image/png,image/gif"
             class="block w-full text-sm"
             @change="handleFileChange"
           >

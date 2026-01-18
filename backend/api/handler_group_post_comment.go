@@ -45,6 +45,10 @@ func (app *Application) createGroupPostComment(w http.ResponseWriter, r *http.Re
 
 	input.Validator.CheckField(validator.NotBlank(input.Content), "content", "Content must not be empty")
 	input.Validator.CheckField(validator.MaxRunes(input.Content, 500), "content", "Content must not exceed 500 characters")
+	if len(input.File) > 0 {
+		input.Validator.CheckField(len(input.File) <= 10_000_000, "file", "File size must be 10MB or less")
+		input.Validator.CheckField(isAllowedImage(input.File), "file", "File must be JPEG, PNG, or GIF")
+	}
 	if input.Validator.HasErrors() {
 		app.failedValidation(w, r, input.Validator)
 		return

@@ -177,3 +177,6 @@ dist
 
 # SQLite database
 backend/db.sqlite
+
+# GitHub
+.github/

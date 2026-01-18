@@ -20,6 +20,7 @@ func (app *Application) routes() http.Handler {
 	// Protected routes (authentication required)
 	registry.GetMethod("/protected/ws", app.ServeWebSocket).
 		GetMethod("/protected/v1/profile/user/{id}", app.getUserProfile).
+		GetMethod("/protected/v1/user/{id}/followers", app.getUserFollowers).
 		GetMethod("/protected/v1/user-list", app.getUserList).
 		GetMethod("/protected/v1/session", app.getSessionProfile).
 		GetMethod("/protected/v1/private-messages/user/{id}", app.getConversation).

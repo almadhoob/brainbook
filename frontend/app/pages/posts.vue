@@ -114,16 +114,26 @@ function formatTimestamp(timestamp?: string | null) {
   return parsed.toLocaleString()
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value)
+}
+
 function extractErrorMessage(reason: unknown) {
   if (!reason) return ''
   if (reason instanceof Error) return reason.message
   if (typeof reason === 'string') return reason
-  if (typeof reason === 'object' && 'data' in (reason as Record<string, unknown>)) {
-    const data = (reason as Record<string, any>).data
-    if (data && typeof data === 'object' && 'error' in data && typeof (data as any).error === 'string') {
-      return (data as any).error
+
+  if (isRecord(reason) && 'data' in reason) {
+    const data = reason.data
+    if (isRecord(data)) {
+      const lower = data.error
+      if (typeof lower === 'string') return lower
+
+      const upper = data.Error
+      if (typeof upper === 'string') return upper
     }
   }
+
   return ''
 }
 
@@ -329,7 +339,7 @@ function getCommentLength(postId: number | string) {
                         <span>•</span>
                         <span>{{ comment.formattedCreatedAt }}</span>
                       </div>
-                      <p class="mt-2 text-sm whitespace-pre-line break-words">
+                      <p class="mt-2 text-sm whitespace-pre-line wrap-break-word">
                         {{ comment.content }}
                       </p>
                     </div>

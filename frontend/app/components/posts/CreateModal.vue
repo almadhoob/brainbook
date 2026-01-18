@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { useFollowers } from '~/composables/useFollowers'
+import { normalizeAvatar } from '~/utils'
+
 const props = defineProps<{ apiBase: string }>()
 const emit = defineEmits<{ (event: 'created'): void }>()
 
@@ -8,12 +11,13 @@ const loading = ref(false)
 const form = reactive({
   content: '',
   visibility: 'public',
-  allowedUserIds: ''
+  allowedUserIds: [] as number[]
 })
 
 const errors = reactive({
   content: '',
-  file: ''
+  file: '',
+  allowedUsers: ''
 })
 
 const fileName = ref('')
@@ -25,12 +29,32 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024
 const MAX_CONTENT = 350
 const contentCount = computed(() => form.content.length)
 
-const limitedInfoOpen = ref(false)
+const followerSearch = ref('')
 
-watch(() => form.visibility, (v) => {
-  if (v === 'private') {
-    limitedInfoOpen.value = true
-    form.visibility = 'almost_private'
+const { session, hydrate } = useSession()
+const userId = computed(() => session.value.user_id)
+const {
+  followers,
+  loading: followersLoading,
+  error: followersError,
+  loadFollowers
+} = useFollowers(props.apiBase, userId)
+
+const filteredFollowers = computed(() => {
+  const query = followerSearch.value.trim().toLowerCase()
+  if (!query) return followers.value
+  return followers.value.filter((user) => {
+    const fullName = `${user.f_name ?? ''} ${user.l_name ?? ''}`.trim().toLowerCase()
+    return fullName.includes(query)
+  })
+})
+
+watch(() => form.visibility, async (value) => {
+  errors.allowedUsers = ''
+  if (value === 'private') {
+    await ensureFollowersLoaded()
+  } else {
+    form.allowedUserIds = []
   }
 })
 
@@ -43,11 +67,20 @@ watch(open, (value) => {
 function resetForm() {
   form.content = ''
   form.visibility = 'public'
-  form.allowedUserIds = ''
+  form.allowedUserIds = []
   errors.content = ''
   errors.file = ''
+  errors.allowedUsers = ''
   fileName.value = ''
   filePayload.value = undefined
+  followerSearch.value = ''
+}
+
+async function ensureFollowersLoaded() {
+  if (!session.value.user_id) {
+    await hydrate(true)
+  }
+  await loadFollowers()
 }
 
 function extractErrorMessage(error: unknown): string {
@@ -113,6 +146,7 @@ function fileToBase64(file: File) {
 async function handleSubmit() {
   errors.content = ''
   errors.file = ''
+  errors.allowedUsers = ''
 
   const content = form.content.trim()
   if (!content) {
@@ -128,12 +162,9 @@ async function handleSubmit() {
   const visibility = form.visibility
   const allowedIds: number[] = []
   if (visibility === 'private') {
-    const cleaned = form.allowedUserIds
-      .split(',')
-      .map(part => Number.parseInt(part.trim(), 10))
-      .filter(n => Number.isInteger(n) && n > 0)
+    const cleaned = form.allowedUserIds.filter(id => Number.isInteger(id) && id > 0)
     if (cleaned.length === 0) {
-      errors.content = 'Provide at least one allowed follower ID for private posts.'
+      errors.allowedUsers = 'Select at least one follower for limited posts.'
       return
     }
     allowedIds.push(...cleaned)
@@ -211,6 +242,61 @@ async function handleSubmit() {
           />
         </div>
 
+        <div v-if="form.visibility === 'private'" class="rounded-xl border border-default/60 p-4 space-y-3">
+          <div class="flex items-center justify-between">
+            <p class="text-sm font-semibold">
+              Choose followers who can view this post
+            </p>
+            <UButton
+              size="xs"
+              color="neutral"
+              variant="ghost"
+              :loading="followersLoading"
+              @click="ensureFollowersLoaded"
+            >
+              Refresh
+            </UButton>
+          </div>
+
+          <UInput
+            v-model="followerSearch"
+            placeholder="Search followers"
+            class="max-w-sm"
+          />
+
+          <p v-if="errors.allowedUsers" class="text-xs text-red-500">
+            {{ errors.allowedUsers }}
+          </p>
+
+          <div v-if="followersLoading" class="text-sm text-muted">
+            Loading followers...
+          </div>
+          <div v-else-if="followersError" class="text-sm text-red-500">
+            {{ followersError }}
+          </div>
+          <div v-else-if="filteredFollowers.length === 0" class="text-sm text-muted">
+            No followers found.
+          </div>
+          <div v-else class="grid gap-2 sm:grid-cols-2">
+            <label
+              v-for="user in filteredFollowers"
+              :key="user.user_id"
+              class="flex items-center gap-3 rounded-lg border border-default/60 p-2 cursor-pointer hover:border-primary/60"
+            >
+              <input
+                v-model="form.allowedUserIds"
+                type="checkbox"
+                :value="user.user_id"
+                class="h-4 w-4 rounded border-default/60"
+              >
+              <UAvatar :src="normalizeAvatar(user.avatar)" :text="user.f_name?.[0] || 'U'" size="xs" />
+              <span class="text-sm">
+                {{ `${user.f_name ?? ''} ${user.l_name ?? ''}`.trim() || 'Unknown user' }}
+              </span>
+            </label>
+          </div>
+        </div>
+
         <UFieldGroup label="Attachment" :description="fileName || 'Optional image or file'" :error="errors.file">
           <input
             type="file"
@@ -234,19 +320,6 @@ async function handleSubmit() {
           </UButton>
         </div>
       </form>
-    </template>
-  </UModal>
-
-  <!-- Popup shown when 'Limited' is selected -->
-  <UModal
-    v-model:open="limitedInfoOpen"
-    title="Limited visibility"
-    description="Only your followers can view limited posts."
-  >
-    <template #body>
-        <div class="flex justify-end">
-          <UButton color="primary" @click="limitedInfoOpen = false">Got it</UButton>
-        </div>
     </template>
   </UModal>
 </template>

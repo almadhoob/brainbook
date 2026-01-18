@@ -1479,9 +1479,7 @@ components:
         user_id:
           type: integer
           format: int64
-        f_name:
-          type: string
-        l_name:
+        full_name:
           type: string
         email:
           type: string
@@ -1489,6 +1487,8 @@ components:
         dob:
           type: string
           format: date
+        is_public:
+          type: boolean
         avatar:
           type: string
           format: byte
@@ -1497,27 +1497,33 @@ components:
           type: string
         bio:
           type: string
-        follower_count:
-          type: integer
-          format: int64
-        following_count:
-          type: integer
-          format: int64
+        followers:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserBasic'
+        following:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserBasic'
         posts:
           type: array
           items:
             $ref: '#/components/schemas/Post'
+        pending_follow_requests_count:
+          type: integer
+          format: int64
         is_self:
           type: boolean
           description: Indicates if the profile belongs to the authenticated user
+        follow_request_status:
+          type: string
+          nullable: true
+          description: Status of the authenticated user's follow request for this profile
       required:
         - user_id
-        - f_name
-        - l_name
+        - full_name
         - email
         - dob
-        - follower_count
-        - following_count
         - posts
         - is_self
 
@@ -1742,9 +1748,38 @@ components:
         users:
           type: array
           items:
-            $ref: '#/components/schemas/UserBasic'
+            $ref: '#/components/schemas/UserListItem'
       required:
         - users
+
+    UserListItem:
+      type: object
+      properties:
+        user_id:
+          type: integer
+          format: int64
+        user_full_name:
+          type: string
+        user_avatar:
+          type: string
+          format: byte
+          nullable: true
+        last_message_time:
+          type: string
+          format: date-time
+          nullable: true
+        follows:
+          type: boolean
+        followed_by:
+          type: boolean
+        follow_request_status:
+          type: string
+          nullable: true
+      required:
+        - user_id
+        - user_full_name
+        - follows
+        - followed_by
 
     Group:
       type: object

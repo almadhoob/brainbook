@@ -441,6 +441,24 @@ func (db *DB) IsFollowing(requesterID, targetID int) (bool, error) {
 	return count > 0, nil
 }
 
+func (db *DB) FollowRequestStatus(requesterID, targetID int) (string, bool, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+
+	var status string
+	query := `SELECT status FROM follow_request WHERE requester_id = $1 AND target_id = $2 ORDER BY created_at DESC LIMIT 1`
+
+	err := db.GetContext(ctx, &status, query, requesterID, targetID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", false, nil
+		}
+		return "", false, err
+	}
+
+	return status, true, nil
+}
+
 func (db *DB) FollowersByUserID(userID int) ([]UserSummary, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
